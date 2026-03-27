@@ -10,6 +10,10 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# OpenTelemetry imports
+from shared.telemetry import setup_opentelemetry, instrument_fastapi_app
+from shared.otel_metrics import init_metrics
+
 # Import routers from all services
 from auth.app import router as auth_router
 from catalog.app import router as catalog_router
@@ -27,6 +31,14 @@ from models import Base
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Setup OpenTelemetry
+tracer, meter, otel_logger = setup_opentelemetry(
+    service_name="microservices-demo",
+    otlp_endpoint="http://localhost:4317",
+    enable_prometheus_metrics=True,
+)
+otel_metrics = init_metrics(meter, "microservices-demo")
 
 
 @asynccontextmanager
@@ -85,6 +97,9 @@ app = FastAPI(
     docs_url="/docs",
     openapi_url="/openapi.json",
 )
+
+# Instrument FastAPI with OpenTelemetry
+instrument_fastapi_app(app, "microservices-demo")
 
 # Add metrics middleware (must be first)
 app.add_middleware(MetricsMiddleware)

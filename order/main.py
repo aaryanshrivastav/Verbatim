@@ -1,14 +1,30 @@
-"""Order service main entry point."""
+"""Order service main entry point with OpenTelemetry."""
 
 import logging
+import os
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# OpenTelemetry setup
+from shared.telemetry import setup_opentelemetry, instrument_fastapi_app
+from shared.otel_metrics import init_metrics
+
+tracer, meter, otel_logger = setup_opentelemetry(
+    service_name="order-service",
+    otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"),
+)
+otel_metrics = init_metrics(meter, "order-service")
+
 from order.app import router as order_router
 from shared.redis_client import init_redis, close_redis
 from shared.metrics import MetricsMiddleware
+from shared.db import engine
+from models import Base
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,6 +34,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Startup and shutdown logic."""
     logger.info("Starting Order Service")
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("✓ Database initialized")
+    except Exception as e:
+        logger.error(f"✗ Database initialization failed: {e}")
+    
     await init_redis()
     yield
     logger.info("Shutting down Order Service")
@@ -34,6 +57,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Instrument with OpenTelemetry
+instrument_fastapi_app(app, "order-service")
 
 # Add metrics middleware
 app.add_middleware(MetricsMiddleware)

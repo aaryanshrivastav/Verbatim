@@ -1,10 +1,24 @@
-"""API Gateway main entry point."""
+"""API Gateway main entry point with OpenTelemetry."""
 
 import logging
+import os
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# OpenTelemetry setup
+from shared.telemetry import setup_opentelemetry, instrument_fastapi_app
+from shared.otel_metrics import init_metrics
+
+tracer, meter, otel_logger = setup_opentelemetry(
+    service_name="gateway-service",
+    otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"),
+)
+otel_metrics = init_metrics(meter, "gateway-service")
 
 from gateway.app import router as gateway_router
 from shared.redis_client import init_redis, close_redis
@@ -34,6 +48,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Instrument with OpenTelemetry
+instrument_fastapi_app(app, "gateway-service")
 
 # Add metrics middleware
 app.add_middleware(MetricsMiddleware)

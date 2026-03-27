@@ -242,6 +242,54 @@ async def create_order(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+# Define specific routes BEFORE generic path parameter routes
+@router.get("/health", tags=["monitoring"])
+async def health_check(
+    db: AsyncSession = Depends(get_db_session),
+    redis_client = Depends(get_redis_client),
+):
+    """Health check endpoint for order service."""
+    checks = {}
+
+    # Check database
+    checks["database"] = await check_database(db)
+
+    # Check Redis
+    checks["redis"] = await check_redis(redis_client)
+
+    # Check payment service
+    checks["payment_service"] = await check_upstream_service(
+        "payment", PAYMENT_SERVICE_URL
+    )
+
+    is_healthy, response = build_health_response(checks)
+    status_code = 200 if is_healthy else 503
+
+    return {"status_code": status_code, **response}
+
+
+@router.get("/metrics", tags=["monitoring"])
+async def metrics():
+    """Return Prometheus metrics."""
+    return get_metrics_text()
+
+
+@router.get("/retry-config", tags=["hidden"])
+async def retry_config():
+    """
+    Hidden route: Return current retry configuration.
+    Useful for retry-storm demo documentation.
+    """
+    return {
+        "retry_enabled": ENABLE_RETRY_STORM,
+        "max_retries": MAX_RETRIES,
+        "initial_backoff_seconds": INITIAL_BACKOFF_SECONDS,
+        "max_backoff_seconds": MAX_BACKOFF_SECONDS,
+        "http_timeout_seconds": HTTP_TIMEOUT_SECONDS,
+    }
+
+
+# Generic path parameter route AFTER specific routes
 @router.get("/{order_id}", response_model=OrderResponse)
 async def get_order(
     order_id: str,
@@ -289,49 +337,3 @@ async def get_order(
     except Exception as e:
         logger.error(f"Get order error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/health", tags=["monitoring"])
-async def health_check(
-    db: AsyncSession = Depends(get_db_session),
-    redis_client = Depends(get_redis_client),
-):
-    """Health check endpoint for order service."""
-    checks = {}
-
-    # Check database
-    checks["database"] = await check_database(db)
-
-    # Check Redis
-    checks["redis"] = await check_redis(redis_client)
-
-    # Check payment service
-    checks["payment_service"] = await check_upstream_service(
-        "payment", PAYMENT_SERVICE_URL
-    )
-
-    is_healthy, response = build_health_response(checks)
-    status_code = 200 if is_healthy else 503
-
-    return {"status_code": status_code, **response}
-
-
-@router.get("/metrics", tags=["monitoring"])
-async def metrics():
-    """Return Prometheus metrics."""
-    return get_metrics_text()
-
-
-@router.get("/retry-config", tags=["hidden"])
-async def retry_config():
-    """
-    Hidden route: Return current retry configuration.
-    Useful for retry-storm demo documentation.
-    """
-    return {
-        "retry_enabled": ENABLE_RETRY_STORM,
-        "max_retries": MAX_RETRIES,
-        "initial_backoff_seconds": INITIAL_BACKOFF_SECONDS,
-        "max_backoff_seconds": MAX_BACKOFF_SECONDS,
-        "http_timeout_seconds": HTTP_TIMEOUT_SECONDS,
-    }

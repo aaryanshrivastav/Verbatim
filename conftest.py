@@ -1,14 +1,17 @@
 """Pytest configuration and fixtures."""
 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file first, before any config imports
+
 import asyncio
 import os
 from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import StaticPool
 
 from main import app
 from models import Base
@@ -23,7 +26,7 @@ test_engine = create_async_engine(
     TEST_DATABASE_URL,
     echo=False,
     future=True,
-    poolclass=NullPool,  # Use NullPool for SQLite (in-memory)
+    poolclass=StaticPool,  # Use StaticPool for in-memory SQLite (ensures all connections use same database)
 )
 
 TestAsyncSessionLocal = async_sessionmaker(
@@ -123,7 +126,8 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
     """Provide an async HTTP client for testing the API."""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
 

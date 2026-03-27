@@ -1,5 +1,24 @@
 
+version: '3.8'
+
 services:
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.88.0
+    command:
+      - "--config=/etc/otel-collector-config.yaml"
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "9411:9411"   # Zipkin receiver
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    depends_on:
+      - prometheus
+      - jaeger
+      - loki
+    environment:
+      - GOGC=80
 
   prometheus:
     image: prom/prometheus
@@ -13,6 +32,8 @@ services:
     ports:
       - "16686:16686"
       - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
 
   loki:
     image: grafana/loki:2.9.3

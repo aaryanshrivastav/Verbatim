@@ -1,5 +1,8 @@
 """Seed script to populate database with test data."""
 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file first
+
 import asyncio
 import uuid
 from datetime import datetime, timedelta
