@@ -88,10 +88,10 @@ class ServiceMetrics:
         self.request_count.add(
             1,
             attributes={
-                "service": self.service_name,
+                "service_name": self.service_name,
                 "method": method,
-                "endpoint": endpoint,
-                "status_code": str(status_code),
+                "http_route": endpoint,
+                "http_status_code": str(status_code),
             },
         )
     
@@ -100,9 +100,9 @@ class ServiceMetrics:
         self.request_duration.record(
             duration_seconds,
             attributes={
-                "service": self.service_name,
+                "service_name": self.service_name,
                 "method": method,
-                "endpoint": endpoint,
+                "http_route": endpoint,
             },
         )
     
@@ -111,9 +111,9 @@ class ServiceMetrics:
         self.error_count.add(
             1,
             attributes={
-                "service": self.service_name,
+                "service_name": self.service_name,
                 "method": method,
-                "endpoint": endpoint,
+                "http_route": endpoint,
                 "error_type": error_type,
             },
         )
@@ -144,7 +144,7 @@ class ServiceMetrics:
         self.db_query_duration.record(
             duration_seconds,
             attributes={
-                "service": self.service_name,
+                "service_name": self.service_name,
                 "query_type": query_type,
             },
         )
@@ -154,7 +154,7 @@ class ServiceMetrics:
         self.db_query_errors.add(
             1,
             attributes={
-                "service": self.service_name,
+                "service_name": self.service_name,
                 "query_type": query_type,
                 "error_type": error_type,
             },
@@ -162,18 +162,18 @@ class ServiceMetrics:
     
     def record_cache_hit(self):
         """Record a cache hit."""
-        self.cache_hits.add(1, attributes={"service": self.service_name})
+        self.cache_hits.add(1, attributes={"service_name": self.service_name})
     
     def record_cache_miss(self):
         """Record a cache miss."""
-        self.cache_misses.add(1, attributes={"service": self.service_name})
+        self.cache_misses.add(1, attributes={"service_name": self.service_name})
     
     def record_auth_failure(self, reason: str):
         """Record an authentication failure."""
         self.auth_failures.add(
             1,
             attributes={
-                "service": self.service_name,
+                "service_name": self.service_name,
                 "reason": reason,
             },
         )
@@ -183,7 +183,7 @@ class ServiceMetrics:
         self.payment_failures.add(
             1,
             attributes={
-                "service": self.service_name,
+                "service_name": self.service_name,
                 "reason": reason,
             },
         )

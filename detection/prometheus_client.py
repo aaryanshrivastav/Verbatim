@@ -110,8 +110,8 @@ class PrometheusClient:
         """
         promql = (
             f"histogram_quantile(0.95, "
-            f"rate({latency_metric}_bucket[1m])) "
-            f"by ({service_label}, {endpoint_label})"
+            f"sum by (le, {service_label}, {endpoint_label}) "
+            f"(rate({latency_metric}_bucket[1m])))"
         )
         
         try:
@@ -148,8 +148,8 @@ class PrometheusClient:
             Dict mapping (service, endpoint) -> requests_per_second
         """
         promql = (
-            f"rate({request_metric}[1m]) "
-            f"by ({service_label}, {endpoint_label})"
+            f"sum by ({service_label}, {endpoint_label}) "
+            f"(rate({request_metric}[1m]))"
         )
         
         try:
@@ -191,15 +191,14 @@ class PrometheusClient:
         """
         # Total request rate
         total_promql = (
-            f"rate({request_metric}[1m]) "
-            f"by ({service_label}, {endpoint_label})"
+            f"sum by ({service_label}, {endpoint_label}) "
+            f"(rate({request_metric}[1m]))"
         )
         
         # 5xx error rate
         error_promql = (
-            f"rate({request_metric}{{{status_label}=~\"5..\"}}"
-            f"[1m]) "
-            f"by ({service_label}, {endpoint_label})"
+            f"sum by ({service_label}, {endpoint_label}) "
+            f"(rate({request_metric}{{{status_label}=~\"5..\"}}[1m]))"
         )
         
         try:

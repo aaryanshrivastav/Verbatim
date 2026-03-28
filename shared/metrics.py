@@ -10,15 +10,15 @@ from typing import Callable
 
 # Define metrics
 HTTP_REQUESTS_TOTAL = Counter(
-    "http_requests_total",
+    "http_request_total",
     "Total HTTP requests",
-    ["service", "method", "endpoint", "status_code"],
+    ["service_name", "method", "http_route", "http_status_code"],
 )
 
 HTTP_REQUEST_DURATION_SECONDS = Histogram(
     "http_request_duration_seconds",
     "HTTP request duration in seconds",
-    ["service", "method", "endpoint"],
+    ["service_name", "method", "http_route"],
 )
 
 # Service name (set by each service)
@@ -41,10 +41,10 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         except Exception as exc:
             # Track error responses
             HTTP_REQUESTS_TOTAL.labels(
-                service=SERVICE_NAME,
+                service_name=SERVICE_NAME,
                 method=request.method,
-                endpoint=request.url.path,
-                status_code=500,
+                http_route=request.url.path,
+                http_status_code=500,
             ).inc()
             raise
 
@@ -52,16 +52,16 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 
         # Record metrics
         HTTP_REQUESTS_TOTAL.labels(
-            service=SERVICE_NAME,
+            service_name=SERVICE_NAME,
             method=request.method,
-            endpoint=request.url.path,
-            status_code=response.status_code,
+            http_route=request.url.path,
+            http_status_code=response.status_code,
         ).inc()
 
         HTTP_REQUEST_DURATION_SECONDS.labels(
-            service=SERVICE_NAME,
+            service_name=SERVICE_NAME,
             method=request.method,
-            endpoint=request.url.path,
+            http_route=request.url.path,
         ).observe(duration)
 
         return response

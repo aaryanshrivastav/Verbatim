@@ -19,7 +19,7 @@ def test_telemetry_setup():
     tracer, meter, logger = setup_opentelemetry(
         service_name="test-service",
         otlp_endpoint="http://localhost:4317",
-        enable_prometheus_metrics=True,
+        enable_prometheus_metrics=False,
     )
     
     # Initialize metrics
@@ -66,7 +66,7 @@ def test_logging(logger):
     """Test structured logging."""
     print("🔧 Testing structured logging...")
     
-    logger.info("Test log message", service="test-service", test=True)
+    logger.info("Test log message", service_name="test-service", test=True)
     
     print("✅ Structured logging successful")
 

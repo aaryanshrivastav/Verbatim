@@ -3,12 +3,20 @@ auth_enabled: false
 server:
   http_listen_port: 3100
 
+common:
+  path_prefix: /tmp/loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
 limits_config:
   allow_structured_metadata: false
 
 ingester:
   lifecycler:
     ring:
+      replication_factor: 1
       kvstore:
         store: inmemory
   chunk_idle_period: 5m

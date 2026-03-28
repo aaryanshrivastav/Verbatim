@@ -30,7 +30,7 @@ async def test_metrics_endpoint(client):
     response = await client.get("/metrics")
     assert response.status_code == 200
     # Prometheus format is plain text
-    assert "http_requests_total" in response.text or response.text
+    assert "http_request_total" in response.text or response.text
 
 
 @pytest.mark.asyncio
