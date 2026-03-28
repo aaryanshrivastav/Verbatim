@@ -5,6 +5,7 @@ Easy to swap with other time-series backends if needed.
 """
 
 import logging
+import math
 from typing import Dict, Optional, Tuple
 import time
 
@@ -66,6 +67,13 @@ class PrometheusClient:
         if "data" in data:
             return data.get("data", {}).get("result", [])
         return data.get("result", [])
+
+    @staticmethod
+    def _value_as_float(series: Dict) -> float:
+        """Parse a Prometheus sample value into a finite float."""
+        raw_value = series.get("value", [0, "0"])[1]
+        value = float(raw_value)
+        return value
     
     def query_range(self, promql: str, start: int, end: int, step: int = 1) -> Dict:
         """Execute range query against Prometheus.
@@ -115,24 +123,47 @@ class PrometheusClient:
         Returns:
             Dict mapping (service, endpoint) -> p95_latency_seconds
         """
-        promql = (
-            f"histogram_quantile(0.95, "
-            f"sum by (le, {service_label}, {endpoint_label}) "
-            f"(rate({latency_metric}_bucket[1m])))"
-        )
-        
         try:
-            data = self.query(promql)
-            result = {}
-            
-            for series in self._extract_result_series(data):
+            short_window = (
+                f"histogram_quantile(0.95, "
+                f"sum by (le, {service_label}, {endpoint_label}) "
+                f"(rate({latency_metric}_bucket[1m])))"
+            )
+            fallback_window = (
+                f"histogram_quantile(0.95, "
+                f"sum by (le, {service_label}, {endpoint_label}) "
+                f"(rate({latency_metric}_bucket[5m])))"
+            )
+
+            result: Dict[Tuple[str, str], float] = {}
+            fallback_needed: list[Tuple[str, str]] = []
+
+            for series in self._extract_result_series(self.query(short_window)):
                 labels = series.get("metric", {})
-                service = labels.get(service_label, "unknown")
-                endpoint = labels.get(endpoint_label, "unknown")
-                value = float(series.get("value", [0, "0"])[1])
-                
-                result[(service, endpoint)] = value
-            
+                key = (
+                    labels.get(service_label, "unknown"),
+                    labels.get(endpoint_label, "unknown"),
+                )
+                value = self._value_as_float(series)
+                if math.isnan(value):
+                    fallback_needed.append(key)
+                    continue
+                result[key] = value
+
+            if fallback_needed:
+                for series in self._extract_result_series(self.query(fallback_window)):
+                    labels = series.get("metric", {})
+                    key = (
+                        labels.get(service_label, "unknown"),
+                        labels.get(endpoint_label, "unknown"),
+                    )
+                    if key not in fallback_needed:
+                        continue
+                    value = self._value_as_float(series)
+                    if math.isnan(value):
+                        continue
+                    result[key] = value
+
             return result
         except Exception as e:
             logger.error(f"Error fetching p95 latency: {e}")
@@ -156,7 +187,7 @@ class PrometheusClient:
         """
         promql = (
             f"sum by ({service_label}, {endpoint_label}) "
-            f"(rate({request_metric}[1m]))"
+            f"(increase({request_metric}[1m])) / 60"
         )
         
         try:
@@ -167,7 +198,7 @@ class PrometheusClient:
                 labels = series.get("metric", {})
                 service = labels.get(service_label, "unknown")
                 endpoint = labels.get(endpoint_label, "unknown")
-                value = float(series.get("value", [0, "0"])[1])
+                value = self._value_as_float(series)
                 
                 result[(service, endpoint)] = value
             
@@ -199,13 +230,13 @@ class PrometheusClient:
         # Total request rate
         total_promql = (
             f"sum by ({service_label}, {endpoint_label}) "
-            f"(rate({request_metric}[1m]))"
+            f"(increase({request_metric}[1m]))"
         )
         
         # 5xx error rate
         error_promql = (
             f"sum by ({service_label}, {endpoint_label}) "
-            f"(rate({request_metric}{{{status_label}=~\"5..\"}}[1m]))"
+            f"(increase({request_metric}{{{status_label}=~\"5..\"}}[1m]))"
         )
         
         try:
@@ -216,7 +247,7 @@ class PrometheusClient:
                 labels = series.get("metric", {})
                 key = (labels.get(service_label, "unknown"), 
                        labels.get(endpoint_label, "unknown"))
-                value = float(series.get("value", [0, "0"])[1])
+                value = self._value_as_float(series)
                 total_requests[key] = value
             
             # Fetch error requests
@@ -226,7 +257,7 @@ class PrometheusClient:
                 labels = series.get("metric", {})
                 key = (labels.get(service_label, "unknown"), 
                        labels.get(endpoint_label, "unknown"))
-                value = float(series.get("value", [0, "0"])[1])
+                value = self._value_as_float(series)
                 error_requests[key] = value
             
             # Compute rates

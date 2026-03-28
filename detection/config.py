@@ -8,6 +8,14 @@ import os
 from dataclasses import dataclass
 
 
+def _parse_csv_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    values = tuple(part.strip() for part in raw.split(",") if part.strip())
+    return values or default
+
+
 @dataclass
 class DetectionConfig:
     """Configuration for anomaly detection engine."""
@@ -51,6 +59,25 @@ class DetectionConfig:
     # Deduplication: avoid alert spam for steady-state anomalies
     # If an anomaly state doesn't change, suppress re-emission for this many seconds
     dedup_cooldown_seconds: int = 30
+
+    # Ignore probe and observability routes so incidents reflect user-facing paths.
+    ignored_endpoints: tuple[str, ...] = (
+        "/",
+        "/health",
+        "/metrics",
+        "/readiness",
+        "/liveness",
+        "/docs",
+        "/openapi.json",
+        "/redoc",
+        "/charge/simulate-failure",
+        "/orders/retry-config",
+    )
+    ignored_endpoint_prefixes: tuple[str, ...] = (
+        "/docs/",
+        "/openapi",
+        "/products/cache-status/",
+    )
     
     @classmethod
     def from_env(cls) -> "DetectionConfig":
@@ -68,4 +95,9 @@ class DetectionConfig:
             latency_weight=float(os.getenv("LATENCY_WEIGHT", cls.latency_weight)),
             error_weight=float(os.getenv("ERROR_WEIGHT", cls.error_weight)),
             dedup_cooldown_seconds=int(os.getenv("DEDUP_COOLDOWN_SECONDS", cls.dedup_cooldown_seconds)),
+            ignored_endpoints=_parse_csv_env("IGNORED_ENDPOINTS", cls.ignored_endpoints),
+            ignored_endpoint_prefixes=_parse_csv_env(
+                "IGNORED_ENDPOINT_PREFIXES",
+                cls.ignored_endpoint_prefixes,
+            ),
         )

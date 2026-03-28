@@ -112,7 +112,9 @@ class RCAPipeline:
             for c in top_3
         ]
         
-        affected_services = [a.service for a in incident.anomalies]
+        affected_services = list({
+            self.config.normalize_service_name(a.service) for a in incident.anomalies
+        })
         
         rca_output = RCAOutput(
             incident_id=incident.incident_id,
@@ -148,17 +150,23 @@ class RCAPipeline:
         """
         # Pick highest severity anomaly
         max_anom = max(incident.anomalies, key=lambda a: a.severity)
+        root_cause = self.config.normalize_service_name(max_anom.service)
         
         state_vector = self.state_builder.build_state_vector(incident)
-        affected_services = [a.service for a in incident.anomalies]
+        affected_services = list({
+            self.config.normalize_service_name(a.service) for a in incident.anomalies
+        })
         
         return RCAOutput(
             incident_id=incident.incident_id,
             endpoint=incident.endpoint,
-            root_cause=max_anom.service,
+            root_cause=root_cause,
             confidence={"value": 0.0, "bucket": "low"},
             top_candidates=[
-                CandidatePrediction(service=a.service, probability=a.severity)
+                CandidatePrediction(
+                    service=self.config.normalize_service_name(a.service),
+                    probability=a.severity,
+                )
                 for a in incident.anomalies
             ],
             affected_services=affected_services,

@@ -40,7 +40,7 @@ class IntegratedPipelineConfig:
     # RCA Configuration
     enable_rca: bool = True
     jaeger_host: str = "localhost"
-    jaeger_port: int = 6831
+    jaeger_port: int = 16686
     prometheus_url: str = "http://localhost:9090"
     loki_url: str = "http://localhost:3100"
     ml_ranker_model_path: str | Path = Path("models/ml_ranker_logistic_regression.pkl")
@@ -262,6 +262,24 @@ class IntegratedPipeline:
         if self.config.baseline_snapshot_path:
             return FileBaselineProvider(self.config.baseline_snapshot_path)
         return DictBaselineProvider()
+
+    def import_detection_baselines(self, detector) -> None:
+        """Import warm-up baselines from the Detection AnomalyDetector.
+
+        Call this after warm-up is complete.  Updates the Feedback Loop's
+        baseline provider so Phase-2 recovery checks use real Detection
+        baselines (source='detection_warmup') instead of hardcoded defaults.
+        """
+        exported = detector.export_baselines()
+        if not exported:
+            logger.warning("No baselines exported from detector — keeping defaults")
+            return
+        self._baseline_provider = DictBaselineProvider(records=exported)
+        self.feedback_loop.baseline_provider = self._baseline_provider
+        logger.info(
+            "Imported %d detection baselines into Feedback Loop",
+            len(exported),
+        )
 
     def _build_static_severity_provider(self):
         if self.config.severity_snapshot_path:

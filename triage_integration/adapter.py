@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import time
 from typing import Any, Mapping, Optional
 
 from detection.models import Incident as DetectionIncident
@@ -26,6 +27,8 @@ class DetectionRCAAdapterConfig:
     loki_base_url: str = "http://localhost:3100"
     ml_model_path: str | Path = Path("models") / "ml_ranker_logistic_regression.pkl"
     fallback_on_error: bool = True
+    max_trace_wait_seconds: float = 2.5
+    trace_poll_interval_seconds: float = 0.5
 
 
 class DetectionRCAAdapter:
@@ -49,12 +52,39 @@ class DetectionRCAAdapter:
         """Analyze one Detection incident and return a native RCAOutput."""
         normalized = self._normalize_incident(incident)
         try:
+            self._wait_for_trace_visibility(normalized)
             return self.pipeline.analyze(normalized)
         except Exception as exc:
             logger.error("Detection -> RCA analysis failed: %s", exc, exc_info=True)
             if not self.config.fallback_on_error:
                 raise
             return self._fallback_output(normalized)
+
+    def _wait_for_trace_visibility(self, incident: Incident) -> None:
+        """Allow Jaeger a short, bounded window to ingest fresh traces.
+
+        Detection can fire within about a second of the live traffic change.
+        Without a tiny wait here, RCA often queries Jaeger before the matching
+        trace is visible and unnecessarily falls back to a severity-only answer.
+        """
+        remaining = self.config.max_trace_wait_seconds
+        if remaining <= 0:
+            return
+
+        jaeger = self.pipeline.trace_builder.jaeger
+        while remaining > 0:
+            traces = jaeger.query_traces_by_endpoint(
+                incident.endpoint,
+                incident.time_window_start - timedelta(seconds=self.rca_config.trace_query_lookback_seconds),
+                incident.time_window_end,
+                limit=self.rca_config.trace_query_limit,
+            )
+            if traces:
+                return
+
+            sleep_for = min(self.config.trace_poll_interval_seconds, remaining)
+            time.sleep(sleep_for)
+            remaining -= sleep_for
 
     def _normalize_incident(self, incident: DetectionIncident | Mapping[str, Any]) -> Incident:
         if isinstance(incident, DetectionIncident):

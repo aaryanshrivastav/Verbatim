@@ -42,6 +42,40 @@ class FailingPipeline:
         raise RuntimeError("boom")
 
 
+class TraceAwarePipeline:
+    def __init__(self):
+        self.calls = 0
+        self.trace_builder = type(
+            "TraceBuilder",
+            (),
+            {
+                "jaeger": type(
+                    "Jaeger",
+                    (),
+                    {"query_traces_by_endpoint": self._query_traces_by_endpoint},
+                )()
+            },
+        )()
+
+    def _query_traces_by_endpoint(self, endpoint, start, end, limit=20):
+        self.calls += 1
+        return [] if self.calls == 1 else [object()]
+
+    def analyze(self, incident):
+        return RCAOutput(
+            incident_id=incident.incident_id,
+            endpoint=incident.endpoint,
+            root_cause="payment-service",
+            confidence=Confidence(value=0.72, bucket=ConfidenceBucket.HIGH),
+            top_candidates=[CandidatePrediction(service="payment-service", probability=0.85)],
+            affected_services=["payment-service"],
+            state_vector=[0, 0, 0, 0, 2, 0],
+            original_severity=0.91,
+            time_window=[incident.time_window_start.isoformat(), incident.time_window_end.isoformat()],
+            evidence=Evidence(traces=["payment-service trace matched"]),
+        )
+
+
 class StubAdapter:
     def analyze(self, incident):
         return RCAOutput(
@@ -74,6 +108,25 @@ def test_detection_rca_adapter_fallback_builds_native_output():
     assert output.affected_services == ["payment-service", "order-service"]
     assert output.state_vector == [0, 0, 0, 1, 2, 0]
     assert output.evidence.metrics == []
+
+
+def test_detection_rca_adapter_waits_briefly_for_live_traces(monkeypatch):
+    pipeline = TraceAwarePipeline()
+    adapter = DetectionRCAAdapter(
+        DetectionRCAAdapterConfig(
+            fallback_on_error=False,
+            max_trace_wait_seconds=1.0,
+            trace_poll_interval_seconds=0.1,
+        ),
+        pipeline=pipeline,
+    )
+    monkeypatch.setattr("triage_integration.adapter.time.sleep", lambda _: None)
+
+    output = adapter.analyze(sample_incident_dict())
+
+    assert pipeline.calls >= 2
+    assert output.root_cause == "payment-service"
+    assert output.evidence.traces == ["payment-service trace matched"]
 
 
 @pytest.mark.asyncio

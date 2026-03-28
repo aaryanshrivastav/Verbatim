@@ -1,7 +1,8 @@
-"""OpenTelemetry Metrics definitions for microservices."""
+"""OpenTelemetry metrics definitions for microservices."""
+
+from typing import Optional
 
 from opentelemetry import metrics
-from typing import Optional
 
 
 class ServiceMetrics:
@@ -197,6 +198,17 @@ def get_metrics() -> ServiceMetrics:
     """Get the global metrics instance."""
     if _metrics is None:
         raise RuntimeError("Metrics not initialized. Call init_metrics first.")
+    return _metrics
+
+
+def try_get_metrics() -> Optional[ServiceMetrics]:
+    """Get the global metrics instance when available.
+
+    Several shared helpers are imported in both app runtime and tests. Returning
+    ``None`` here lets those helpers record richer telemetry in production
+    without forcing every isolated test or utility script to initialize the OTel
+    meter first.
+    """
     return _metrics
 
 

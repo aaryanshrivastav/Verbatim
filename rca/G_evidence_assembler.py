@@ -146,7 +146,7 @@ class EvidenceAssembler:
             # Query traces
             traces = self.jaeger.query_traces_by_endpoint(
                 incident.endpoint,
-                incident.time_window_start,
+                incident.time_window_start - timedelta(seconds=self.config.trace_query_lookback_seconds),
                 incident.time_window_end,
                 limit=5
             )

@@ -1,9 +1,12 @@
 """API Gateway - proxies requests to microservices."""
 
 import logging
+import time
 from typing import Any, Dict
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import httpx
 
@@ -15,6 +18,7 @@ from shared.config import (
     HTTP_TIMEOUT_SECONDS,
 )
 from shared.metrics import get_metrics_text
+from shared.otel_metrics import try_get_metrics
 from shared.health import check_upstream_service, build_health_response
 
 logger = logging.getLogger(__name__)
@@ -36,6 +40,9 @@ async def proxy_request(
     Generic proxy for forwarding requests to microservices.
     """
     url = f"{service_url}{path}"
+    parsed_service = urlparse(service_url)
+    target_service = parsed_service.hostname or service_url
+    start_time = time.perf_counter()
     try:
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
             if method == "GET":
@@ -47,16 +54,35 @@ async def proxy_request(
 
             if response.status_code >= 500:
                 logger.error(f"Upstream error: {url} returned {response.status_code}")
+                metrics = try_get_metrics()
+                duration = time.perf_counter() - start_time
+                if metrics is not None:
+                    metrics.record_external_call_duration(target_service, duration)
+                    metrics.record_external_call_error(target_service, f"http_{response.status_code}")
                 raise ProxyError(f"Upstream service error: {response.status_code}")
 
+            metrics = try_get_metrics()
+            duration = time.perf_counter() - start_time
+            if metrics is not None:
+                metrics.record_external_call_duration(target_service, duration)
             return response.json()
 
     except httpx.TimeoutException:
         logger.error(f"Timeout calling {url}")
+        metrics = try_get_metrics()
+        duration = time.perf_counter() - start_time
+        if metrics is not None:
+            metrics.record_external_call_duration(target_service, duration)
+            metrics.record_external_call_error(target_service, "timeout")
         raise ProxyError("Upstream service timeout")
 
     except httpx.RequestError as e:
         logger.error(f"Request error to {url}: {e}")
+        metrics = try_get_metrics()
+        duration = time.perf_counter() - start_time
+        if metrics is not None:
+            metrics.record_external_call_duration(target_service, duration)
+            metrics.record_external_call_error(target_service, type(e).__name__)
         raise ProxyError("Upstream service unavailable")
 
     except ProxyError:
@@ -172,7 +198,7 @@ async def health_check() -> Dict[str, Any]:
     is_healthy, response = build_health_response(checks)
     status_code = 200 if is_healthy else 503
 
-    return {"status_code": status_code, **response}
+    return JSONResponse(content=response, status_code=status_code)
 
 
 @router.get("/metrics", tags=["monitoring"])

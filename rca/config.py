@@ -16,6 +16,7 @@ class RCAConfig:
     
     # Trace query
     trace_query_limit: int = int(os.getenv("RCA_TRACE_QUERY_LIMIT", "20"))
+    trace_query_lookback_seconds: int = int(os.getenv("RCA_TRACE_QUERY_LOOKBACK_SECONDS", "30"))
     span_suspicious_multiplier: float = float(os.getenv("RCA_SPAN_SUSPICIOUS_K", "3.0"))
     baseline_window_seconds: int = int(os.getenv("RCA_BASELINE_WINDOW", "60"))
     allow_synthetic_trace_fallback: bool = os.getenv("RCA_ALLOW_SYNTHETIC_TRACE_FALLBACK", "false").lower() == "true"
@@ -55,35 +56,42 @@ class RCAConfig:
         
         if self.service_depth_map is None:
             self.service_depth_map = {
+                "frontend": 0,
                 "gateway": 1,
                 "auth": 2,
-                "catalog": 2,
-                "order": 2,
+                "checkout": 2,
                 "payment": 3,
                 "db": -1,
             }
 
         if self.service_aliases is None:
             self.service_aliases = {
-                "frontend": "gateway",
+                # frontend slot
+                "frontend": "frontend",
+                "frontend-service": "frontend",
+                # gateway slot
+                "gateway": "gateway",
+                "gateway-service": "gateway",
+                "api-gateway": "gateway",
                 "main-app": "gateway",
                 "microservices-demo": "gateway",
-                "api-gateway": "gateway",
-                "gateway-service": "gateway",
-                "gateway": "gateway",
-                "auth-service": "auth",
+                # auth slot
                 "auth": "auth",
-                "catalog-service": "catalog",
-                "catalog": "catalog",
-                "order-service": "order",
-                "orderservice": "order",
-                "orders": "order",
-                "checkout": "order",
-                "checkoutservice": "order",
-                "order": "order",
+                "auth-service": "auth",
+                # checkout slot (maps catalog + order to brief's 'checkout')
+                "checkout": "checkout",
+                "checkoutservice": "checkout",
+                "order": "checkout",
+                "order-service": "checkout",
+                "orderservice": "checkout",
+                "orders": "checkout",
+                "catalog": "checkout",
+                "catalog-service": "checkout",
+                # payment slot
+                "payment": "payment",
                 "payment-service": "payment",
                 "paymentservice": "payment",
-                "payment": "payment",
+                # db slot
                 "postgres": "db",
                 "orders-db": "db",
                 "user-db": "db",
@@ -94,13 +102,13 @@ class RCAConfig:
             }
 
         if self.state_slots is None:
-            self.state_slots = ("gateway", "auth", "catalog", "order", "payment", "db")
+            self.state_slots = ("frontend", "gateway", "auth", "checkout", "payment", "db")
         
         if self.database_services is None:
             self.database_services = {"db"}
         
         if self.edge_services is None:
-            self.edge_services = {"gateway"}
+            self.edge_services = {"frontend", "gateway"}
     
     def get_service_depth(self, service: str) -> int:
         """Get depth for a service, default 2."""

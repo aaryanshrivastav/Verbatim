@@ -53,31 +53,37 @@ class FeedbackLoopConfig:
     q_table_checkpoint_path: str | Path = Path("feedback_loop") / "artifacts" / "q_table_checkpoint.pkl"
     save_every_updates: int = 5
     state_slots: Sequence[str] = (
+        "frontend",
         "gateway",
         "auth",
-        "catalog",
-        "order",
+        "checkout",
         "payment",
         "db",
     )
     service_aliases: Mapping[str, str] = field(
         default_factory=lambda: {
+            "frontend": "frontend",
+            "frontend-service": "frontend",
             "gateway-service": "gateway",
             "gateway": "gateway",
+            "main-app": "gateway",
+            "microservices-demo": "gateway",
             "auth-service": "auth",
             "auth": "auth",
-            "catalog-service": "catalog",
-            "catalog": "catalog",
-            "order-service": "order",
-            "order": "order",
-            "checkoutservice": "order",
+            "checkout": "checkout",
+            "checkoutservice": "checkout",
+            "catalog-service": "checkout",
+            "catalog": "checkout",
+            "order-service": "checkout",
+            "order": "checkout",
+            "orderservice": "checkout",
             "payment-service": "payment",
             "payment": "payment",
+            "paymentservice": "payment",
             "postgres": "db",
             "redis": "db",
             "orders-db": "db",
             "db": "db",
-            "microservices-demo": "gateway",
         }
     )
 

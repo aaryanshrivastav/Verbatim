@@ -14,6 +14,7 @@ else:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # OpenTelemetry setup
 from shared.telemetry import setup_opentelemetry, instrument_fastapi_app
@@ -28,7 +29,10 @@ otel_metrics = init_metrics(meter, "order-service")
 from order.app import router as order_router
 from shared.redis_client import init_redis, close_redis
 from shared.metrics import MetricsMiddleware
-from shared.db import engine
+from shared.db import AsyncSessionLocal, engine
+from shared.health import build_health_response, check_database, check_redis, check_upstream_service
+from shared.redis_client import get_redis_client
+from shared.config import PAYMENT_SERVICE_URL
 from models import Base
 
 logging.basicConfig(level=logging.INFO)
@@ -84,8 +88,25 @@ app.include_router(order_router)
 # Health check endpoint
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
-    return {"status": "ok", "service": "order-service"}
+    """Dependency-aware health check for container probes and operators."""
+    checks = {}
+
+    try:
+        async with AsyncSessionLocal() as session:
+            checks["database"] = await check_database(session)
+    except Exception as exc:
+        checks["database"] = {"status": "down", "service": "database", "error": str(exc)}
+
+    try:
+        redis_client = await get_redis_client()
+        checks["redis"] = await check_redis(redis_client)
+    except Exception as exc:
+        checks["redis"] = {"status": "down", "service": "redis", "error": str(exc)}
+
+    checks["payment_service"] = await check_upstream_service("payment", PAYMENT_SERVICE_URL)
+
+    is_healthy, response = build_health_response(checks)
+    return JSONResponse(content=response, status_code=200 if is_healthy else 503)
 
 
 if __name__ == "__main__":

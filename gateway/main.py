@@ -14,6 +14,7 @@ else:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # OpenTelemetry setup
 from shared.telemetry import setup_opentelemetry, instrument_fastapi_app
@@ -28,6 +29,9 @@ otel_metrics = init_metrics(meter, "gateway-service")
 from gateway.app import router as gateway_router
 from shared.redis_client import init_redis, close_redis
 from shared.metrics import MetricsMiddleware
+from shared.health import build_health_response, check_redis, check_upstream_service
+from shared.redis_client import get_redis_client
+from shared.config import AUTH_SERVICE_URL, CATALOG_SERVICE_URL, ORDER_SERVICE_URL, PAYMENT_SERVICE_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -75,8 +79,22 @@ app.include_router(gateway_router)
 # Health check endpoint
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
-    return {"status": "ok", "service": "gateway-service"}
+    """Dependency-aware health check for container probes and operators."""
+    checks = {}
+
+    try:
+        redis_client = await get_redis_client()
+        checks["redis"] = await check_redis(redis_client)
+    except Exception as exc:
+        checks["redis"] = {"status": "down", "service": "redis", "error": str(exc)}
+
+    checks["auth_service"] = await check_upstream_service("auth", AUTH_SERVICE_URL)
+    checks["catalog_service"] = await check_upstream_service("catalog", CATALOG_SERVICE_URL)
+    checks["order_service"] = await check_upstream_service("order", ORDER_SERVICE_URL)
+    checks["payment_service"] = await check_upstream_service("payment", PAYMENT_SERVICE_URL)
+
+    is_healthy, response = build_health_response(checks)
+    return JSONResponse(content=response, status_code=200 if is_healthy else 503)
 
 
 if __name__ == "__main__":

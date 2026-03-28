@@ -3,11 +3,13 @@
 import logging
 import asyncio
 import random
+import time
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -19,6 +21,7 @@ from models import Order, OrderItem, User, Product
 
 from shared.db import get_db_session
 from shared.metrics import get_metrics_text
+from shared.otel_metrics import try_get_metrics
 from shared.health import check_database, check_redis, check_upstream_service, build_health_response
 from shared.redis_client import get_redis_client
 from shared.config import (
@@ -82,6 +85,7 @@ async def call_payment_service(
 
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
         while retries < max_attempts:
+            start_time = time.perf_counter()
             try:
                 response = await client.post(
                     f"{PAYMENT_SERVICE_URL}/charge",
@@ -92,10 +96,17 @@ async def call_payment_service(
                     },
                 )
 
+                metrics = try_get_metrics()
+                duration = time.perf_counter() - start_time
+                if metrics is not None:
+                    metrics.record_external_call_duration("payment-service", duration)
+
                 if response.status_code == 200:
                     return True
 
                 if response.status_code in (500, 504) and retries < max_attempts - 1:
+                    if metrics is not None:
+                        metrics.record_external_call_error("payment-service", f"http_{response.status_code}")
                     backoff = await exponential_backoff(retries)
                     logger.warning(
                         f"Payment call failed with {response.status_code}, "
@@ -105,9 +116,16 @@ async def call_payment_service(
                     retries += 1
                     continue
 
+                if metrics is not None:
+                    metrics.record_external_call_error("payment-service", f"http_{response.status_code}")
                 return False
 
             except httpx.TimeoutException:
+                metrics = try_get_metrics()
+                duration = time.perf_counter() - start_time
+                if metrics is not None:
+                    metrics.record_external_call_duration("payment-service", duration)
+                    metrics.record_external_call_error("payment-service", "timeout")
                 if retries < max_attempts - 1:
                     backoff = await exponential_backoff(retries)
                     logger.warning(
@@ -121,6 +139,11 @@ async def call_payment_service(
 
             except Exception as e:
                 logger.error(f"Payment call error: {e}")
+                metrics = try_get_metrics()
+                duration = time.perf_counter() - start_time
+                if metrics is not None:
+                    metrics.record_external_call_duration("payment-service", duration)
+                    metrics.record_external_call_error("payment-service", type(e).__name__)
                 return False
 
     return False
@@ -265,7 +288,7 @@ async def health_check(
     is_healthy, response = build_health_response(checks)
     status_code = 200 if is_healthy else 503
 
-    return {"status_code": status_code, **response}
+    return JSONResponse(content=response, status_code=status_code)
 
 
 @router.get("/metrics", tags=["monitoring"])

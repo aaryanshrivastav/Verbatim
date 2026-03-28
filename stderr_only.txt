@@ -1,0 +1,43 @@
+raceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 151, in validate_schema_alignment
+    check(f"Alias '{raw}' \u2192 '{expected_canonical}' consistent across RCA/FB/Adapter",
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 56, in check
+    print(f"  [PASS]  {name}")
+  File "C:\Users\SOMA KA LAPTOP LUND\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 34: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 181, in validate_normalization
+    check(f"normalize('{raw_name}') \u2192 '{expected}'",
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 56, in check
+    print(f"  [PASS]  {name}")
+  File "C:\Users\SOMA KA LAPTOP LUND\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 39: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 263, in validate_baseline_export
+    baselines = detector.export_baselines()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\detection\detector.py", line 375, in export_baselines
+    if key.metric == "p95_latency" and len(state.buffer) > 0:
+       ^^^^^^^^^^
+AttributeError: 'StreamKey' object has no attribute 'metric'
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 361, in validate_full_pipeline
+    section("PHASE 6 — Full Pipeline Round-Trip (Detection \u2192 Decision \u2192 Feedback)")
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 48, in section
+    print(f"  {title}")
+  File "C:\Users\SOMA KA LAPTOP LUND\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 48: character maps to <undefined>

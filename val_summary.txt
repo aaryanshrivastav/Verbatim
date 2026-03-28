@@ -1,0 +1,43 @@
+PASSED: 86
+FAILED: 0
+CRASHED: 2
+
+STDERR:
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 263, in validate_baseline_export
+    baselines = detector.export_baselines()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\detection\detector.py", line 375, in export_baselines
+    if key.metric == "p95_latency" and len(state.buffer) > 0:
+       ^^^^^^^^^^
+AttributeError: 'StreamKey' object has no attribute 'metric'
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 380, in validate_full_pipeline
+    incident = Incident(
+               ^^^^^^^^^
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\venv\Lib\site-packages\pydantic\main.py", line 164, in __init__
+    __pydantic_self__.__pydantic_validator__.validate_python(data, self_instance=__pydantic_self__)
+pydantic_core._pydantic_core.ValidationError: 2 validation errors for Incident
+anomalies.0
+  Input should be a valid dictionary or instance of IncidentAnomaly [type=model_type, input_value=AnomalyEvent(service='cat...re=0.9, error_score=0.3), input_type=AnomalyEvent]
+    For further information visit https://errors.pydantic.dev/2.5/v/model_type
+anomalies.1
+  Input should be a valid dictionary or instance of IncidentAnomaly [type=model_type, input_value=AnomalyEvent(service='pay...re=0.2, error_score=0.7), input_type=AnomalyEvent]
+    For further information visit https://errors.pydantic.dev/2.5/v/model_type
+
+
+CRASH SECTIONS:
+  [CRASH] PHASE CRASHED: Baseline Export/Import
+
+======================================================================
+  PHASE 5 ??? Docker Catalog & Scaling Readiness
+======================================================================
+
+---END CRASH---
+  [CRASH] PHASE CRASHED: Full Pipeline e2e
+
+---END CRASH---

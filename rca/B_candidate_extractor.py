@@ -48,10 +48,11 @@ class CandidateExtractor:
             for anomaly in incident.anomalies
         }
         
-        for service, trace_metric in trace_metrics.items():
+        for raw_service, trace_metric in trace_metrics.items():
+            service = self.config.normalize_service_name(raw_service)
             # Get metrics severity from incident
             metrics_severity = severity_by_service.get(
-                self.config.normalize_service_name(service),
+                service,
                 0.0,
             )
             

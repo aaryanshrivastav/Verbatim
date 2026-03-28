@@ -1,0 +1,181 @@
+
+  +================================================================+
+  |    VERBATIM AI OBSERVABILITY -- FULL PIPELINE VALIDATION       |
+  |    Detection -> RCA -> Decision -> Remediation -> Feedback     |
+  +================================================================+
+
+
+======================================================================
+  PHASE 1 — State-Vector Schema Alignment Across All Components
+======================================================================
+
+  [PASS]  RCA config state_slots match brief
+  [PASS]  Feedback Loop state_slots match brief
+  [PASS]  Adapter state_slots match brief
+  [PASS]  Cascade config state_slots match brief
+  [PASS]  All 4 config surfaces have identical state_slots
+  [PASS]  State vector has exactly 6 slots
+  [PASS]  RCA depth_map has 'frontend' at depth 0
+  [PASS]  RCA edge_services includes 'frontend'
+
+  [CRASH] PHASE CRASHED: Schema Alignment
+
+======================================================================
+  PHASE 2 — Service Name Normalization (RCA Fix)
+======================================================================
+
+
+  [CRASH] PHASE CRASHED: Service Normalization
+
+======================================================================
+  PHASE 3 — State Vector Builder (Module F)
+======================================================================
+
+  [PASS]  State vector has 6 elements
+  [PASS]  State vector values correct: [0, 2, 0, 1, 1, 0]
+
+======================================================================
+  PHASE 4 — Detection Baseline Export & Feedback Import
+======================================================================
+
+
+  [CRASH] PHASE CRASHED: Baseline Export/Import
+
+======================================================================
+  PHASE 5 — Docker Catalog & Scaling Readiness
+======================================================================
+
+  [PASS]  'auth' container = 'verbatim-auth-1'
+  [PASS]  'auth' is scalable
+  [PASS]  'catalog' container = 'verbatim-catalog-1'
+  [PASS]  'catalog' is scalable
+  [PASS]  'order' container = 'verbatim-order-1'
+  [PASS]  'order' is scalable
+  [PASS]  'payment' container = 'verbatim-payment-1'
+  [PASS]  'payment' is scalable
+  [PASS]  'gateway' container = 'verbatim-gateway-1'
+  [PASS]  'gateway' is scalable
+  [PASS]  Infra 'postgres' has fixed container_name='postgres'
+  [PASS]  Infra 'postgres' is NOT scalable
+  [PASS]  Infra 'redis' has fixed container_name='redis'
+  [PASS]  Infra 'redis' is NOT scalable
+  [PASS]  Infra 'jaeger' has fixed container_name='jaeger'
+  [PASS]  Infra 'jaeger' is NOT scalable
+  [PASS]  Infra 'prometheus' has fixed container_name='prometheus'
+  [PASS]  Infra 'prometheus' is NOT scalable
+  [PASS]  Infra 'loki' has fixed container_name='loki'
+  [PASS]  Infra 'loki' is NOT scalable
+  [PASS]  Infra 'grafana' has fixed container_name='grafana'
+  [PASS]  Infra 'grafana' is NOT scalable
+  [PASS]  Alias 'payment-service' resolves to canonical='payment'
+  [PASS]  Alias 'catalog-service' resolves to canonical='catalog'
+  [PASS]  Alias 'order-service' resolves to canonical='order'
+  [PASS]  Alias 'gateway-service' resolves to canonical='gateway'
+  [PASS]  Alias 'auth-service' resolves to canonical='auth'
+  [PASS]  Alias 'checkout' resolves to canonical='order'
+  [PASS]  Alias 'orders-db' resolves to canonical='postgres'
+
+======================================================================
+
+  [CRASH] PHASE CRASHED: Full Pipeline e2e
+
+======================================================================
+  PHASE 7 — Failure Path (Remediation Ineffective + Negative Reward)
+======================================================================
+
+  [PASS]  Failure outcome = REMEDIATION_INEFFECTIVE
+  [PASS]  Phase 2 = METRICS_DEGRADED
+  [PASS]  Q-shift is negative (penalty for failed remediation)
+  [PASS]  Cascade suppressed (remediation failed)
+  [PASS]  REMEDIATION_INEFFECTIVE event emitted
+
+======================================================================
+  PHASE 8 -- Infrastructure Configuration Validation
+======================================================================
+
+  [PASS]  OTel config file exists
+  [PASS]  OTel batch timeout <= 200ms
+  [PASS]  OTel batch size <= 512
+  [PASS]  Prometheus config file exists
+  [PASS]  Prometheus scrape_interval = 2s
+  [PASS]  docker-compose.yml exists
+  [PASS]  docker-compose 'auth' has NO container_name (scalable)
+  [PASS]  docker-compose 'catalog' has NO container_name (scalable)
+  [PASS]  docker-compose 'order' has NO container_name (scalable)
+  [PASS]  docker-compose 'payment' has NO container_name (scalable)
+  [PASS]  docker-compose 'gateway' has NO container_name (scalable)
+  [PASS]  docker-compose 'postgres' retains container_name
+  [PASS]  docker-compose 'redis' retains container_name
+  [PASS]  docker-compose 'prometheus' retains container_name
+  [PASS]  docker-compose 'jaeger' retains container_name
+  [PASS]  docker-compose 'loki' retains container_name
+
+======================================================================
+  PHASE 9 — Jaeger Port & RCA Integration Config
+======================================================================
+
+  [PASS]  RCA Jaeger port = 16686 (HTTP query API)
+  [PASS]  RCA Jaeger URL would be http://localhost:16686
+
+======================================================================
+  PHASE 10 — Unit Test Suite (pytest)
+======================================================================
+
+  [PASS]  pytest suite completes
+  [PASS]  All 55 unit tests pass
+
+======================================================================
+  66 passed  |  4 failed  |  70 total
+
+  FAILURES:
+    * PHASE CRASH: Schema Alignment: 'charmap' codec can't encode character '\u2192' in position 34: character maps to <undefined>
+    * PHASE CRASH: Service Normalization: 'charmap' codec can't encode character '\u2192' in position 39: character maps to <undefined>
+    * PHASE CRASH: Baseline Export/Import: 'StreamKey' object has no attribute 'metric'
+    * PHASE CRASH: Full Pipeline e2e: 'charmap' codec can't encode character '\u2192' in position 48: character maps to <undefined>
+======================================================================
+
+
+---STDERR---
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 151, in validate_schema_alignment
+    check(f"Alias '{raw}' \u2192 '{expected_canonical}' consistent across RCA/FB/Adapter",
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 56, in check
+    print(f"  [PASS]  {name}")
+  File "C:\Users\SOMA KA LAPTOP LUND\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 34: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 181, in validate_normalization
+    check(f"normalize('{raw_name}') \u2192 '{expected}'",
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 56, in check
+    print(f"  [PASS]  {name}")
+  File "C:\Users\SOMA KA LAPTOP LUND\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 39: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 263, in validate_baseline_export
+    baselines = detector.export_baselines()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\detection\detector.py", line 375, in export_baselines
+    if key.metric == "p95_latency" and len(state.buffer) > 0:
+       ^^^^^^^^^^
+AttributeError: 'StreamKey' object has no attribute 'metric'
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 902, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 361, in validate_full_pipeline
+    section("PHASE 6 — Full Pipeline Round-Trip (Detection \u2192 Decision \u2192 Feedback)")
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 48, in section
+    print(f"  {title}")
+  File "C:\Users\SOMA KA LAPTOP LUND\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 48: character maps to <undefined>

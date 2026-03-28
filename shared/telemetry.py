@@ -54,6 +54,7 @@ def setup_json_logging():
 def _configure_otlp_logging(resource: Resource, otlp_endpoint: str) -> None:
     """Attach OTLP log export without duplicating handlers across test runs."""
     global _OTEL_LOGGING_INSTRUMENTED
+    log_export_delay_ms = int(os.getenv("OTEL_LOG_EXPORT_DELAY_MS", "500"))
 
     current_provider = _logs.get_logger_provider()
     if isinstance(current_provider, LoggerProvider):
@@ -64,7 +65,10 @@ def _configure_otlp_logging(resource: Resource, otlp_endpoint: str) -> None:
 
     if not getattr(logger_provider, "_verbatim_otlp_enabled", False):
         logger_provider.add_log_record_processor(
-            BatchLogRecordProcessor(OTLPLogExporter(endpoint=otlp_endpoint))
+            BatchLogRecordProcessor(
+                OTLPLogExporter(endpoint=otlp_endpoint),
+                schedule_delay_millis=log_export_delay_ms,
+            )
         )
         logger_provider._verbatim_otlp_enabled = True
 
@@ -102,6 +106,8 @@ def setup_opentelemetry(
         otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
     if sampling_rate is None:
         sampling_rate = float(os.getenv("OTEL_SAMPLING_RATE", "1.0"))
+    span_export_delay_ms = int(os.getenv("OTEL_SPAN_EXPORT_DELAY_MS", "500"))
+    metric_export_interval_ms = int(os.getenv("OTEL_METRIC_EXPORT_INTERVAL_MS", "500"))
 
     # Create resource with service name
     resource = Resource(attributes={SERVICE_NAME: service_name})
@@ -117,7 +123,12 @@ def setup_opentelemetry(
         resource=resource,
         sampler=sampler
     )
-    trace_provider.add_span_processor(BatchSpanProcessor(trace_exporter))
+    trace_provider.add_span_processor(
+        BatchSpanProcessor(
+            trace_exporter,
+            schedule_delay_millis=span_export_delay_ms,
+        )
+    )
     trace.set_tracer_provider(trace_provider)
 
     # Export metrics over OTLP so the collector remains the single scrape target.
@@ -129,7 +140,12 @@ def setup_opentelemetry(
         metric_readers.append(PrometheusMetricReader())
     else:
         otlp_metric_exporter = OTLPMetricExporter(endpoint=otlp_endpoint)
-        metric_readers.append(PeriodicExportingMetricReader(otlp_metric_exporter))
+        metric_readers.append(
+            PeriodicExportingMetricReader(
+                otlp_metric_exporter,
+                export_interval_millis=metric_export_interval_ms,
+            )
+        )
 
     metric_provider = MeterProvider(
         resource=resource,

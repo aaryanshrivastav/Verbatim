@@ -6,7 +6,7 @@ computes suspicious span ratios per service.
 
 import logging
 from typing import Dict, List, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from rca.models import Incident, TraceMetrics
 from rca.clients.jaeger_client import JaegerClient, JaegerTrace
@@ -44,9 +44,12 @@ class TraceGraphBuilder:
             Dict mapping service -> TraceMetrics
         """
         # Query traces from Jaeger
+        query_start = incident.time_window_start - timedelta(
+            seconds=self.config.trace_query_lookback_seconds
+        )
         traces = self.jaeger.query_traces_by_endpoint(
             incident.endpoint,
-            incident.time_window_start,
+            query_start,
             incident.time_window_end,
             limit=self.config.trace_query_limit
         )
@@ -79,7 +82,8 @@ class TraceGraphBuilder:
             service_metrics: Dict to update
         """
         seen_in_trace = set()
-        for service in trace.get_service_names():
+        for raw_service in trace.get_service_names():
+            service = self.config.normalize_service_name(raw_service)
             if service not in service_metrics:
                 service_metrics[service] = {
                     "span_count": 0,
@@ -88,9 +92,9 @@ class TraceGraphBuilder:
                     "trace_hits": 0,
                 }
             
-            # Get span metrics for this service
+            # Get span metrics for this service (query with raw name, aggregate under canonical)
             span_count, error_count, durations = self.jaeger.get_service_span_metrics(
-                trace, service
+                trace, raw_service
             )
             service_metrics[service]["span_count"] += span_count
             if span_count > 0 and service not in seen_in_trace:

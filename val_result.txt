@@ -1,0 +1,208 @@
+
+  +================================================================+
+  |    VERBATIM AI OBSERVABILITY -- FULL PIPELINE VALIDATION       |
+  |    Detection -> RCA -> Decision -> Remediation -> Feedback     |
+  +================================================================+
+
+
+======================================================================
+  PHASE 1 â€” State-Vector Schema Alignment Across All Components
+======================================================================
+
+  [PASS]  RCA config state_slots match brief
+  [PASS]  Feedback Loop state_slots match brief
+  [PASS]  Adapter state_slots match brief
+  [PASS]  Cascade config state_slots match brief
+  [PASS]  All 4 config surfaces have identical state_slots
+  [PASS]  State vector has exactly 6 slots
+  [PASS]  RCA depth_map has 'frontend' at depth 0
+  [PASS]  RCA edge_services includes 'frontend'
+  [PASS]  Alias 'catalog-service' â†’ 'checkout' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'order-service' â†’ 'checkout' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'catalog' â†’ 'checkout' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'order' â†’ 'checkout' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'checkoutservice' â†’ 'checkout' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'gateway-service' â†’ 'gateway' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'payment-service' â†’ 'payment' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'auth-service' â†’ 'auth' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'postgres' â†’ 'db' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'redis' â†’ 'db' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'microservices-demo' â†’ 'gateway' consistent across RCA/FB/Adapter
+  [PASS]  Alias 'frontend' â†’ 'frontend' consistent across RCA/FB/Adapter
+
+======================================================================
+  PHASE 2 â€” Service Name Normalization (RCA Fix)
+======================================================================
+
+  [PASS]  normalize('gateway-service') â†’ 'gateway'
+  [PASS]  normalize('microservices-demo') â†’ 'gateway'
+  [PASS]  normalize('catalog-service') â†’ 'checkout'
+  [PASS]  normalize('order-service') â†’ 'checkout'
+  [PASS]  normalize('payment-service') â†’ 'payment'
+  [PASS]  normalize('auth-service') â†’ 'auth'
+  [PASS]  normalize('postgres') â†’ 'db'
+  [PASS]  normalize('redis') â†’ 'db'
+  [PASS]  normalize('frontend') â†’ 'frontend'
+  [PASS]  normalize('unknown-svc') â†’ 'unknown-svc'
+
+======================================================================
+  PHASE 3 â€” State Vector Builder (Module F)
+======================================================================
+
+  [PASS]  State vector has 6 elements
+  [PASS]  State vector values correct: [0, 2, 0, 1, 1, 0]
+
+======================================================================
+  PHASE 4 â€” Detection Baseline Export & Feedback Import
+======================================================================
+
+  [PASS]  export_baselines() returns data
+  [PASS]  Baseline has 'payment-service' key
+  [PASS]  Baseline record has error_rate_baseline
+  [PASS]  Baseline record has p95_latency_baseline_ms
+  [PASS]  Baseline source is 'detection_warmup'
+  [PASS]  Baseline used_default is False
+  [PASS]  DictBaselineProvider accepts exported baselines
+
+  [CRASH] PHASE CRASHED: Baseline Export/Import
+
+======================================================================
+  PHASE 5 â€” Docker Catalog & Scaling Readiness
+======================================================================
+
+  [PASS]  'auth' container = 'verbatim-auth-1'
+  [PASS]  'auth' is scalable
+  [PASS]  'catalog' container = 'verbatim-catalog-1'
+  [PASS]  'catalog' is scalable
+  [PASS]  'order' container = 'verbatim-order-1'
+  [PASS]  'order' is scalable
+  [PASS]  'payment' container = 'verbatim-payment-1'
+  [PASS]  'payment' is scalable
+  [PASS]  'gateway' container = 'verbatim-gateway-1'
+  [PASS]  'gateway' is scalable
+  [PASS]  Infra 'postgres' has fixed container_name='postgres'
+  [PASS]  Infra 'postgres' is NOT scalable
+  [PASS]  Infra 'redis' has fixed container_name='redis'
+  [PASS]  Infra 'redis' is NOT scalable
+  [PASS]  Infra 'jaeger' has fixed container_name='jaeger'
+  [PASS]  Infra 'jaeger' is NOT scalable
+  [PASS]  Infra 'prometheus' has fixed container_name='prometheus'
+  [PASS]  Infra 'prometheus' is NOT scalable
+  [PASS]  Infra 'loki' has fixed container_name='loki'
+  [PASS]  Infra 'loki' is NOT scalable
+  [PASS]  Infra 'grafana' has fixed container_name='grafana'
+  [PASS]  Infra 'grafana' is NOT scalable
+  [PASS]  Alias 'payment-service' resolves to canonical='payment'
+  [PASS]  Alias 'catalog-service' resolves to canonical='catalog'
+  [PASS]  Alias 'order-service' resolves to canonical='order'
+  [PASS]  Alias 'gateway-service' resolves to canonical='gateway'
+  [PASS]  Alias 'auth-service' resolves to canonical='auth'
+  [PASS]  Alias 'checkout' resolves to canonical='order'
+  [PASS]  Alias 'orders-db' resolves to canonical='postgres'
+
+======================================================================
+  PHASE 6 â€” Full Pipeline Round-Trip (Detection â†’ Decision â†’ Feedback)
+======================================================================
+
+
+  Step 1: Detection â†’ Incident
+  Step 2: Incident Adapter â†’ RCA Output (Fallback Path)
+  [PASS]  RCA output has incident_id
+  [FAIL]  RCA root_cause uses canonical name (not raw)  -- got 'catalog-service'
+  [PASS]  RCA state_vector has 6 elements
+  [PASS]  State vector checkout slot (idx 3) = 2 (critical, severity 0.88)
+  [PASS]  State vector payment slot (idx 4) = 1 (degraded, severity 0.45)
+  [PASS]  RCA confidence bucket is valid
+  Step 3: Decision Engine â†’ Action Selection
+  [PASS]  Decision engine returns DecisionOutput (not blocked/skipped)
+  [PASS]  Decision action_type is valid
+  [PASS]  Decision action targets root_cause service
+  [PASS]  Decision state_vector preserved from RCA
+  [PASS]  Decision latency (0.3ms) < 30ms SLA
+  [PASS]  Decision events published (DECISION_MADE + RL_STATE)
+  Step 4: Simulated Remediation Execution
+  [PASS]  Execution log validates correctly
+  Step 5: Feedback Loop â€” Phase 1 + Phase 2 + RL Update
+  [FAIL]  Feedback outcome = RECOVERED  -- got 'REMEDIATION_INEFFECTIVE'
+  [FAIL]  Phase 1 = PROVISIONALLY_RECOVERED  -- got 'CONTAINER_FAILED'
+  [FAIL]  Phase 2 = CONFIRMED_RECOVERED  -- got phase2=None
+  [FAIL]  Phase 2 baseline_source is 'detection_warmup' (not 'default')  -- got 'N/A'
+  [PASS]  Q-learning update fired (not skipped)
+  [FAIL]  Q-shift is positive (reward for successful recovery)  -- q_shift=-0.006
+  [PASS]  Registry released (active_count=0)
+  [FAIL]  PHASE1_CONFIRMED event emitted  -- events: ['PHASE1_FAILED', 'RL_Q_UPDATED', 'REMEDIATION_INEFFECTIVE', 'CASCADE_SUPPRESSED', 'INCIDENT_CLOSED']
+  [FAIL]  PHASE2_CONFIRMED event emitted  -- events: ['PHASE1_FAILED', 'RL_Q_UPDATED', 'REMEDIATION_INEFFECTIVE', 'CASCADE_SUPPRESSED', 'INCIDENT_CLOSED']
+  [PASS]  RL_Q_UPDATED event emitted
+  [PASS]  INCIDENT_CLOSED event emitted
+
+======================================================================
+  PHASE 7 â€” Failure Path (Remediation Ineffective + Negative Reward)
+======================================================================
+
+  [PASS]  Failure outcome = REMEDIATION_INEFFECTIVE
+  [PASS]  Phase 2 = METRICS_DEGRADED
+  [PASS]  Q-shift is negative (penalty for failed remediation)
+  [PASS]  Cascade suppressed (remediation failed)
+  [PASS]  REMEDIATION_INEFFECTIVE event emitted
+
+======================================================================
+  PHASE 8 -- Infrastructure Configuration Validation
+======================================================================
+
+  [PASS]  OTel config file exists
+  [PASS]  OTel batch timeout <= 200ms
+  [PASS]  OTel batch size <= 512
+  [PASS]  Prometheus config file exists
+  [PASS]  Prometheus scrape_interval = 2s
+  [PASS]  docker-compose.yml exists
+  [PASS]  docker-compose 'auth' has NO container_name (scalable)
+  [PASS]  docker-compose 'catalog' has NO container_name (scalable)
+  [PASS]  docker-compose 'order' has NO container_name (scalable)
+  [PASS]  docker-compose 'payment' has NO container_name (scalable)
+  [PASS]  docker-compose 'gateway' has NO container_name (scalable)
+  [PASS]  docker-compose 'postgres' retains container_name
+  [PASS]  docker-compose 'redis' retains container_name
+  [PASS]  docker-compose 'prometheus' retains container_name
+  [PASS]  docker-compose 'jaeger' retains container_name
+  [PASS]  docker-compose 'loki' retains container_name
+
+======================================================================
+  PHASE 9 â€” Jaeger Port & RCA Integration Config
+======================================================================
+
+  [PASS]  RCA Jaeger port = 16686 (HTTP query API)
+  [PASS]  RCA Jaeger URL would be http://localhost:16686
+
+======================================================================
+  PHASE 10 â€” Unit Test Suite (pytest)
+======================================================================
+
+  [PASS]  pytest suite completes
+  [PASS]  All 55 unit tests pass
+
+======================================================================
+  109 passed  |  9 failed  |  118 total
+
+  FAILURES:
+    * PHASE CRASH: Baseline Export/Import: 'BaselineRecord' object has no attribute 'get'
+    * RCA root_cause uses canonical name (not raw): got 'catalog-service'
+    * Feedback outcome = RECOVERED: got 'REMEDIATION_INEFFECTIVE'
+    * Phase 1 = PROVISIONALLY_RECOVERED: got 'CONTAINER_FAILED'
+    * Phase 2 = CONFIRMED_RECOVERED: got phase2=None
+    * Phase 2 baseline_source is 'detection_warmup' (not 'default'): got 'N/A'
+    * Q-shift is positive (reward for successful recovery): q_shift=-0.006
+    * PHASE1_CONFIRMED event emitted: events: ['PHASE1_FAILED', 'RL_Q_UPDATED', 'REMEDIATION_INEFFECTIVE', 'CASCADE_SUPPRESSED', 'INCIDENT_CLOSED']
+    * PHASE2_CONFIRMED event emitted: events: ['PHASE1_FAILED', 'RL_Q_UPDATED', 'REMEDIATION_INEFFECTIVE', 'CASCADE_SUPPRESSED', 'INCIDENT_CLOSED']
+======================================================================
+
+
+=== STDERR ===
+Traceback (most recent call last):
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 895, in main
+    fn()
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\validate_full_pipeline.py", line 300, in validate_baseline_export
+    lookup.get("source") == "detection_warmup",
+    ^^^^^^^^^^
+  File "C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\venv\Lib\site-packages\pydantic\main.py", line 761, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'BaselineRecord' object has no attribute 'get'

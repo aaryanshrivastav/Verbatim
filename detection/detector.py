@@ -102,34 +102,41 @@ class AnomalyDetector:
         
         # Update streams and score
         for (service, endpoint), metric_values in metrics.items():
+            if self._should_ignore_stream(service, endpoint):
+                continue
+
             p95_latency = metric_values["p95_latency"]
             error_rate = metric_values["error_rate"]
             
             # Update latency stream
             latency_key = StreamKey(service, endpoint, "p95_latency")
             latency_stream = self._get_or_create_stream(latency_key)
-            latency_stream.buffer.push(p95_latency)
-            
-            # Update stats inline
-            latency_stream.rolling_mean, latency_stream.rolling_std = (
-                RollingStats(latency_stream.buffer).get_stats()
+            latency_baseline_mean = latency_stream.rolling_mean
+            latency_baseline_std = latency_stream.rolling_std
+            latency_score = (
+                self.scorer.normalized_score(
+                    self.scorer.z_score(p95_latency, latency_baseline_mean, latency_baseline_std)
+                )
+                if len(latency_stream.buffer) > 0
+                else 0.0
             )
-            
-            # Compute latency score
-            latency_score = self.scorer.score_stream(latency_stream)
+            latency_stream.buffer.push(p95_latency)
+            latency_stream.rolling_mean, latency_stream.rolling_std = RollingStats(latency_stream.buffer).get_stats()
             
             # Update error stream
             error_key = StreamKey(service, endpoint, "error_rate")
             error_stream = self._get_or_create_stream(error_key)
-            error_stream.buffer.push(error_rate)
-            
-            # Update stats inline
-            error_stream.rolling_mean, error_stream.rolling_std = (
-                RollingStats(error_stream.buffer).get_stats()
+            error_baseline_mean = error_stream.rolling_mean
+            error_baseline_std = error_stream.rolling_std
+            error_score = (
+                self.scorer.normalized_score(
+                    self.scorer.z_score(error_rate, error_baseline_mean, error_baseline_std)
+                )
+                if len(error_stream.buffer) > 0
+                else 0.0
             )
-            
-            # Compute error score
-            error_score = self.scorer.score_stream(error_stream)
+            error_stream.buffer.push(error_rate)
+            error_stream.rolling_mean, error_stream.rolling_std = RollingStats(error_stream.buffer).get_stats()
             
             # Compute combined severity
             severity = self.scorer.compute_severity(
@@ -173,6 +180,19 @@ class AnomalyDetector:
             logger.info(f"Closed incident {incident.incident_id}")
         
         return new_events, new_incidents
+
+    def _should_ignore_stream(self, service: str, endpoint: str) -> bool:
+        """Skip probe and observability endpoints.
+
+        These streams are useful for platform monitoring, but they create noisy
+        incidents for RCA because they do not represent user-facing failures.
+        """
+        if endpoint in self.config.ignored_endpoints:
+            return True
+        return any(
+            endpoint.startswith(prefix)
+            for prefix in self.config.ignored_endpoint_prefixes
+        )
     
     def _get_or_create_stream(self, key: StreamKey) -> StreamState:
         """Get or create stream state.
@@ -335,3 +355,39 @@ class AnomalyDetector:
             List of recent incidents
         """
         return self.incidents[-limit:]
+
+    def export_baselines(self) -> dict:
+        """Export current rolling baselines for the Feedback Loop.
+
+        Returns a dict keyed by ``service`` or ``service|endpoint`` with
+        ``error_rate_baseline`` and ``p95_latency_baseline_ms`` values
+        derived from the warm-up period ring buffers.
+
+        Should be called *after* warm-up is complete.
+        """
+        baselines: dict = {}
+        # Group streams by (service, endpoint)
+        grouped: dict[tuple[str, str], dict[str, float]] = {}
+        for key, state in self.streams.items():
+            pair = (key.service, key.endpoint)
+            if pair not in grouped:
+                grouped[pair] = {}
+            if key.metric_type == "p95_latency" and len(state.buffer) > 0:
+                grouped[pair]["p95_latency_baseline_ms"] = round(state.rolling_mean * 1000, 3)
+            elif key.metric_type == "error_rate" and len(state.buffer) > 0:
+                grouped[pair]["error_rate_baseline"] = round(state.rolling_mean, 6)
+
+        for (service, endpoint), vals in grouped.items():
+            record = {
+                "error_rate_baseline": vals.get("error_rate_baseline", 0.05),
+                "p95_latency_baseline_ms": vals.get("p95_latency_baseline_ms", 500.0),
+                "source": "detection_warmup",
+                "used_default": False,
+            }
+            # Store both by service name and by service|endpoint
+            baselines[service] = record
+            if endpoint:
+                baselines[f"{service}|{endpoint}"] = record
+
+        return baselines
+

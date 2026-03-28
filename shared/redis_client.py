@@ -8,6 +8,7 @@ import redis
 from redis.asyncio import Redis as AsyncRedis
 
 from shared.config import REDIS_URL, REDIS_CACHE_TTL
+from shared.otel_metrics import try_get_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,13 @@ async def cache_get(key: str, redis_client: AsyncRedis) -> Optional[Any]:
     try:
         value = await redis_client.get(key)
         if value:
+            metrics = try_get_metrics()
+            if metrics is not None:
+                metrics.record_cache_hit()
             return json.loads(value)
+        metrics = try_get_metrics()
+        if metrics is not None:
+            metrics.record_cache_miss()
     except Exception as e:
         logger.warning(f"Cache get failed for key {key}: {e}")
     return None

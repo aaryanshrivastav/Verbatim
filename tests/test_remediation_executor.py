@@ -176,8 +176,19 @@ def test_default_catalog_matches_component1_service_names():
 
     catalog = build_default_catalog()
 
-    assert catalog.resolve("payment-service").container_name == "payment-service"
-    assert catalog.resolve("auth-service").container_name == "auth-service"
-    assert catalog.resolve("order-service").container_name == "order-service"
-    assert catalog.resolve("gateway-service").container_name == "gateway-service"
+    # App services now use Compose auto-naming (container_name removed for scaling)
+    assert catalog.resolve("payment-service").container_name == "verbatim-payment-1"
+    assert catalog.resolve("auth-service").container_name == "verbatim-auth-1"
+    assert catalog.resolve("order-service").container_name == "verbatim-order-1"
+    assert catalog.resolve("gateway-service").container_name == "verbatim-gateway-1"
     assert catalog.resolve("microservices-demo").container_name == "main-app"
+
+    # Verify app services are scalable
+    assert catalog.resolve("payment-service").scalable is True
+    assert catalog.resolve("auth-service").scalable is True
+    assert catalog.resolve("gateway-service").scalable is True
+
+    # Infra services keep hardcoded names
+    assert catalog.resolve("postgres").container_name == "postgres"
+    assert catalog.resolve("redis").container_name == "redis"
+

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from detection.config import DetectionConfig
 from detection.service import DetectionService
+from pipeline_integration.detection_client import DetectionApiClient
 from pipeline_integration.service import IntegratedPipeline, IntegratedPipelineConfig
 
 
@@ -66,6 +67,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--output-file",
         type=Path,
         help="Optional JSONL file to append pipeline outcomes.",
+    )
+    parser.add_argument(
+        "--detection-api-url",
+        help="Use a running Detection service instead of an in-process detector.",
     )
     
     # RCA Configuration
@@ -133,8 +138,14 @@ async def _main_async(args: argparse.Namespace) -> None:
         rca_fallback_on_error=args.rca_fallback,
     )
     
+    detection_service = (
+        DetectionApiClient(args.detection_api_url)
+        if args.detection_api_url
+        else None
+    )
     runner = IntegratedPipelineRunner(
-        pipeline=IntegratedPipeline(config)
+        pipeline=IntegratedPipeline(config),
+        detection_service=detection_service,
     )
     
     if args.once:

@@ -37,7 +37,7 @@ class RCAPipelineConfig:
     """Configuration for RCA pipeline integration."""
 
     jaeger_host: str = "localhost"
-    jaeger_port: int = 6831
+    jaeger_port: int = 16686
     prometheus_url: str = "http://localhost:9090"
     loki_url: str = "http://localhost:3100"
     ml_ranker_model_path: str | Path = Path("models/ml_ranker_logistic_regression.pkl")

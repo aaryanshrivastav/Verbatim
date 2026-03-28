@@ -112,7 +112,7 @@ async def test_feedback_loop_happy_path_releases_registry_and_updates_qtable(tmp
     registry.reserve("inc-feedback-1", "payment-service")
     service = FeedbackLoopService(
         config=FeedbackLoopConfig(enable_sleep=False),
-        runtime=FakeDockerRuntime(containers={"payment-service": "running"}),
+        runtime=FakeDockerRuntime(containers={"verbatim-payment-1": "running"}),
         registry=registry,
         publisher=publisher,
         baseline_provider=DictBaselineProvider(
@@ -151,7 +151,7 @@ async def test_feedback_loop_failure_path_suppresses_cascade_and_learns_negative
     registry.reserve("inc-feedback-1", "payment-service")
     service = FeedbackLoopService(
         config=FeedbackLoopConfig(enable_sleep=False),
-        runtime=FakeDockerRuntime(containers={"payment-service": "running"}),
+        runtime=FakeDockerRuntime(containers={"verbatim-payment-1": "running"}),
         registry=registry,
         publisher=publisher,
         baseline_provider=DictBaselineProvider(
@@ -187,7 +187,7 @@ async def test_feedback_loop_skips_q_update_when_safety_overridden(tmp_path: Pat
     registry.reserve("inc-feedback-1", "payment-service")
     service = FeedbackLoopService(
         config=FeedbackLoopConfig(enable_sleep=False),
-        runtime=FakeDockerRuntime(containers={"payment-service": "running"}),
+        runtime=FakeDockerRuntime(containers={"verbatim-payment-1": "running"}),
         registry=registry,
         publisher=publisher,
         baseline_provider=DictBaselineProvider(
@@ -218,7 +218,7 @@ async def test_feedback_loop_marks_metrics_unknown_on_missing_metrics(tmp_path: 
     registry.reserve("inc-feedback-1", "payment-service")
     service = FeedbackLoopService(
         config=FeedbackLoopConfig(enable_sleep=False),
-        runtime=FakeDockerRuntime(containers={"payment-service": "running"}),
+        runtime=FakeDockerRuntime(containers={"verbatim-payment-1": "running"}),
         registry=registry,
         publisher=publisher,
         baseline_provider=DictBaselineProvider(
@@ -246,7 +246,7 @@ async def test_feedback_loop_emits_cascade_to_decision_and_executor(tmp_path: Pa
     stub_executor = StubExecutor()
     service = FeedbackLoopService(
         config=FeedbackLoopConfig(enable_sleep=False),
-        runtime=FakeDockerRuntime(containers={"payment-service": "running"}),
+        runtime=FakeDockerRuntime(containers={"verbatim-payment-1": "running"}),
         registry=registry,
         publisher=publisher,
         baseline_provider=DictBaselineProvider(

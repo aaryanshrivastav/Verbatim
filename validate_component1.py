@@ -324,7 +324,12 @@ class Component1Validator:
             and self.results.prometheus_scrape_interval == "2s"
             and self.results.service_identity_consistent
         )
-        overall = "READY WITH LOG PIPELINE CAVEAT" if all_working else "NEEDS FIXES"
+        if all_working and self.results.logs_status == "WORKING":
+            overall = "READY"
+        elif all_working:
+            overall = "READY WITH LOG PIPELINE CAVEAT"
+        else:
+            overall = "NEEDS FIXES"
         print(f"\nOVERALL STATUS: {overall}")
         return all_working
 

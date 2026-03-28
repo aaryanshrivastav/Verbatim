@@ -1,0 +1,143 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-7.4.3, pluggy-1.6.0 -- C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim
+plugins: anyio-3.7.1, asyncio-0.21.1, cov-4.1.0
+asyncio: mode=Mode.STRICT
+collecting ... collected 55 items
+
+tests/test_auth.py::test_validate_auth_no_credentials PASSED             [  1%]
+tests/test_auth.py::test_login_missing_credentials PASSED                [  3%]
+tests/test_auth.py::test_health_includes_database PASSED                 [  5%]
+tests/test_catalog.py::test_list_products_empty PASSED                   [  7%]
+tests/test_catalog.py::test_get_product_not_found PASSED                 [  9%]
+tests/test_catalog.py::test_get_product_invalid_id_format PASSED         [ 10%]
+tests/test_catalog.py::test_cache_status_endpoint PASSED                 [ 12%]
+tests/test_decision_engine_policy.py::test_policy_masks_live_unsafe_actions_for_db PASSED [ 14%]
+tests/test_decision_engine_policy.py::test_policy_defaults_to_restart_for_unseen_state PASSED [ 16%]
+tests/test_decision_engine_policy.py::test_policy_rejects_stale_q_table_shape PASSED [ 18%]
+tests/test_decision_engine_safety.py::test_safety_gate_blocks_cooldown PASSED [ 20%]
+tests/test_decision_engine_safety.py::test_safety_gate_blocks_duplicate_incident PASSED [ 21%]
+tests/test_decision_engine_safety.py::test_safety_gate_blocks_service_already_in_flight PASSED [ 23%]
+tests/test_decision_engine_service.py::test_process_emits_decision_and_rl_events PASSED [ 25%]
+tests/test_decision_engine_service.py::test_process_skips_non_actionable_all_zero_state PASSED [ 27%]
+tests/test_decision_engine_service.py::test_process_blocks_service_after_action_is_marked_fired PASSED [ 29%]
+tests/test_decision_engine_training.py::test_q_trainer_generates_non_empty_q_table PASSED [ 30%]
+tests/test_detection_prometheus_client.py::test_p95_latency_query_uses_valid_histogram_quantile PASSED [ 32%]
+tests/test_detection_prometheus_client.py::test_request_rate_query_aggregates_by_service_and_endpoint PASSED [ 34%]
+tests/test_detection_prometheus_client.py::test_error_rate_queries_use_status_filter_and_aggregation PASSED [ 36%]
+tests/test_detection_prometheus_client.py::test_p95_latency_falls_back_to_longer_window_when_short_window_is_nan PASSED [ 38%]
+tests/test_feedback_loop.py::test_feedback_loop_happy_path_releases_registry_and_updates_qtable PASSED [ 40%]
+tests/test_feedback_loop.py::test_feedback_loop_failure_path_suppresses_cascade_and_learns_negative_reward PASSED [ 41%]
+tests/test_feedback_loop.py::test_feedback_loop_skips_q_update_when_safety_overridden PASSED [ 43%]
+tests/test_feedback_loop.py::test_feedback_loop_marks_metrics_unknown_on_missing_metrics PASSED [ 45%]
+tests/test_feedback_loop.py::test_feedback_loop_emits_cascade_to_decision_and_executor PASSED [ 47%]
+tests/test_main.py::test_root_endpoint PASSED                            [ 49%]
+tests/test_main.py::test_health_endpoint PASSED                          [ 50%]
+tests/test_main.py::test_metrics_endpoint PASSED                         [ 52%]
+tests/test_main.py::test_readiness_endpoint PASSED                       [ 54%]
+tests/test_main.py::test_liveness_endpoint PASSED                        [ 56%]
+tests/test_order.py::test_create_order_invalid_user PASSED               [ 58%]
+tests/test_order.py::test_create_order_nonexistent_user PASSED           [ 60%]
+tests/test_order.py::test_get_order_not_found PASSED                     [ 61%]
+tests/test_order.py::test_retry_config_endpoint PASSED                   [ 63%]
+tests/test_payment.py::test_charge_invalid_order_id PASSED               [ 65%]
+tests/test_payment.py::test_simulate_failure_toggle_timeout PASSED       [ 67%]
+tests/test_payment.py::test_simulate_failure_toggle_fail PASSED          [ 69%]
+tests/test_payment.py::test_simulate_failure_toggle_normal PASSED        [ 70%]
+tests/test_pipeline_detection_client.py::test_detection_api_client_refreshes_config PASSED [ 72%]
+tests/test_pipeline_detection_client.py::test_detection_api_client_tick_posts_to_remote_service PASSED [ 74%]
+tests/test_pipeline_integration.py::test_adapter_builds_rca_output_from_detection_incident PASSED [ 76%]
+tests/test_pipeline_integration.py::test_integrated_pipeline_processes_detection_incident_end_to_end PASSED [ 78%]
+tests/test_pipeline_integration.py::test_integrated_pipeline_runs_feedback_and_cascade_round_trip PASSED [ 80%]
+tests/test_pipeline_integration.py::test_runner_executes_one_tick_from_detection_service PASSED [ 81%]
+tests/test_remediation_executor.py::test_executor_happy_path_restart PASSED [ 83%]
+tests/test_remediation_executor.py::test_executor_force_kill_db_falls_back_to_restart PASSED [ 85%]
+tests/test_remediation_executor.py::test_executor_queue_processes_requests_sequentially PASSED [ 87%]
+tests/test_remediation_executor.py::test_executor_container_not_found_fails_gracefully PASSED [ 89%]
+tests/test_remediation_executor.py::test_executor_cooldown_race_blocks_second_action PASSED [ 90%]
+tests/test_remediation_executor.py::test_default_catalog_matches_component1_service_names PASSED [ 92%]
+tests/test_triage_integration.py::test_detection_rca_adapter_fallback_builds_native_output PASSED [ 94%]
+tests/test_triage_integration.py::test_detection_rca_adapter_waits_briefly_for_live_traces PASSED [ 96%]
+tests/test_triage_integration.py::test_triage_pipeline_processes_detection_incident_end_to_end PASSED [ 98%]
+tests/test_triage_integration.py::test_runner_executes_one_tick_detection_to_rca PASSED [100%]
+
+============================== warnings summary ===============================
+venv\Lib\site-packages\opentelemetry\instrumentation\dependencies.py:4
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\venv\Lib\site-packages\opentelemetry\instrumentation\dependencies.py:4: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+    from pkg_resources import (
+
+models.py:28
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\models.py:28: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    Base = declarative_base()
+
+venv\Lib\site-packages\pydantic\_internal\_config.py:268
+venv\Lib\site-packages\pydantic\_internal\_config.py:268
+venv\Lib\site-packages\pydantic\_internal\_config.py:268
+venv\Lib\site-packages\pydantic\_internal\_config.py:268
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\venv\Lib\site-packages\pydantic\_internal\_config.py:268: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.5/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+tests\test_auth.py:7
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_auth.py:7: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_auth.py:17
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_auth.py:17: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_auth.py:25
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_auth.py:25: PytestUnknownMarkWarning: Unknown pytest.mark.requires_db - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.requires_db
+
+tests\test_catalog.py:7
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_catalog.py:7: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_catalog.py:17
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_catalog.py:17: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_catalog.py:26
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_catalog.py:26: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_catalog.py:34
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_catalog.py:34: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_order.py:8
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_order.py:8: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_order.py:22
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_order.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_order.py:36
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_order.py:36: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_order.py:45
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_order.py:45: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_payment.py:8
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_payment.py:8: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_payment.py:23
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_payment.py:23: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_payment.py:36
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_payment.py:36: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_payment.py:49
+  C:\Users\SOMA KA LAPTOP LUND\Documents\Verbatim\tests\test_payment.py:49: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 55 passed, 21 warnings in 1.34s =======================
+

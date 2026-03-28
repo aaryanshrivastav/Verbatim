@@ -5,6 +5,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -141,7 +142,7 @@ async def health_check(
     is_healthy, response = build_health_response(checks)
     status_code = 200 if is_healthy else 503
 
-    return {"status_code": status_code, **response}
+    return JSONResponse(content=response, status_code=status_code)
 
 
 @router.get("/metrics", tags=["monitoring"])

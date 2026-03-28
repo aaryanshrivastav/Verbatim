@@ -181,6 +181,37 @@ class TestDetector:
         assert detector.get_warmup_remaining_seconds() > 0
         assert detector.get_warmup_remaining_seconds() <= 10
 
+    def test_ignores_probe_routes(self):
+        """Probe and observability routes should not become RCA incidents."""
+        from detection.config import DetectionConfig
+        from detection.detector import AnomalyDetector
+
+        detector = AnomalyDetector(DetectionConfig(warmup_seconds=0))
+
+        assert detector._should_ignore_stream("microservices-demo", "/health") is True
+        assert detector._should_ignore_stream("microservices-demo", "/metrics") is True
+        assert detector._should_ignore_stream("microservices-demo", "/api/v1/orders") is False
+
+    def test_scores_against_prior_history_not_current_sample(self):
+        """A sharp new value should be scored against the previous baseline."""
+        from detection.config import DetectionConfig
+        from detection.detector import AnomalyDetector
+        from detection.models import StreamKey
+
+        detector = AnomalyDetector(DetectionConfig(warmup_seconds=0))
+        stream = detector._get_or_create_stream(StreamKey("payment-service", "/charge", "error_rate"))
+
+        for _ in range(5):
+            stream.buffer.push(0.0)
+        stream.rolling_mean = 0.0
+        stream.rolling_std = 0.0
+
+        score = detector.scorer.normalized_score(
+            detector.scorer.z_score(1.0, stream.rolling_mean, stream.rolling_std)
+        )
+
+        assert score == 1.0
+
 
 class TestIncidentClustering:
     """Tests for incident clustering."""

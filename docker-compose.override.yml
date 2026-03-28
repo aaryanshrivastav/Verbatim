@@ -1,8 +1,6 @@
 # Docker Compose Override for Local Development
 # This file is automatically merged with docker-compose.yml when running docker-compose
 
-version: '3.8'
-
 services:
   # Enable hot-reload for microservices
   auth:

@@ -33,8 +33,3 @@ scrape_configs:
     static_configs:
       - targets: ["otel-collector:8889"]
     metrics_path: "/metrics"
-  
-  # Scrape legacy services endpoint (if running services locally)
-  - job_name: "services"
-    static_configs:
-      - targets: ["host.docker.internal:8000"]

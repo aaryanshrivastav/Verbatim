@@ -8,6 +8,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -19,6 +20,7 @@ from models import Payment
 from shared.db import get_db_session
 from shared.config import PAYMENT_SUCCESS_RATE, PAYMENT_TIMEOUT_RATE
 from shared.metrics import get_metrics_text
+from shared.otel_metrics import try_get_metrics
 from shared.health import check_database, check_redis, build_health_response
 from shared.redis_client import get_redis_client
 
@@ -64,6 +66,9 @@ async def charge(
 
         # Simulate payment outcomes (check simulation flags first)
         if _payment_simulation["always_timeout"]:
+            metrics = try_get_metrics()
+            if metrics is not None:
+                metrics.record_payment_failure("simulated_timeout")
             await asyncio.sleep(2)
             raise HTTPException(
                 status_code=504,
@@ -71,6 +76,9 @@ async def charge(
             )
         
         if _payment_simulation["always_fail"]:
+            metrics = try_get_metrics()
+            if metrics is not None:
+                metrics.record_payment_failure("simulated_failure")
             raise HTTPException(
                 status_code=500,
                 detail="Payment gateway error",
@@ -82,6 +90,9 @@ async def charge(
 
             if outcome_rand < PAYMENT_TIMEOUT_RATE:
                 # Simulate timeout
+                metrics = try_get_metrics()
+                if metrics is not None:
+                    metrics.record_payment_failure("timeout")
                 await asyncio.sleep(2)
                 raise HTTPException(
                     status_code=504,
@@ -90,6 +101,9 @@ async def charge(
 
             elif outcome_rand < (PAYMENT_TIMEOUT_RATE + (1 - PAYMENT_SUCCESS_RATE - PAYMENT_TIMEOUT_RATE)):
                 # Simulate error
+                metrics = try_get_metrics()
+                if metrics is not None:
+                    metrics.record_payment_failure("gateway_error")
                 raise HTTPException(
                     status_code=500,
                     detail="Payment gateway error",
@@ -186,7 +200,7 @@ async def health_check(
     is_healthy, response = build_health_response(checks)
     status_code = 200 if is_healthy else 503
 
-    return {"status_code": status_code, **response}
+    return JSONResponse(content=response, status_code=status_code)
 
 
 @router.get("/metrics", tags=["monitoring"])

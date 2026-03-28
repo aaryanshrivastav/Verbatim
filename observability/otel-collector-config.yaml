@@ -41,8 +41,8 @@ processors:
   # Batch processor: Aggregates telemetry into batches for efficiency
   # Reduces network overhead and improves throughput
   batch:
-    timeout: 10s              # Wait max 10s before sending partial batch
-    send_batch_size: 1024     # Send immediately when 1024 items collected
+    timeout: 100ms            # Aggressive flush for sub-3s ingestion per brief SLA
+    send_batch_size: 512      # Flush smaller batches more frequently
   
   # Memory limiter: Prevents OTel Collector from consuming unbounded memory
   # Drops telemetry if quota reached (prevents cascade failures)

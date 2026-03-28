@@ -5,10 +5,10 @@ from detection.prometheus_client import PrometheusClient
 
 def test_p95_latency_query_uses_valid_histogram_quantile(monkeypatch):
     client = PrometheusClient("http://localhost:9090")
-    captured = {}
+    captured = []
 
     def fake_query(promql):
-        captured["promql"] = promql
+        captured.append(promql)
         return {
             "result": [
                 {
@@ -22,8 +22,9 @@ def test_p95_latency_query_uses_valid_histogram_quantile(monkeypatch):
 
     result = client.get_p95_latency_by_service_endpoint()
 
-    assert "sum by (le, service_name, http_route)" in captured["promql"]
-    assert "histogram_quantile(0.95" in captured["promql"]
+    assert len(captured) == 1
+    assert "sum by (le, service_name, http_route)" in captured[0]
+    assert "histogram_quantile(0.95" in captured[0]
     assert result[("payment-service", "/checkout")] == 1.25
 
 
@@ -48,7 +49,7 @@ def test_request_rate_query_aggregates_by_service_and_endpoint(monkeypatch):
 
     assert captured["promql"] == (
         "sum by (service_name, http_route) "
-        "(rate(http_request_total[1m]))"
+        "(increase(http_request_total[1m])) / 60"
     )
     assert result[("gateway-service", "/api/v1/orders")] == 3.0
 
@@ -83,10 +84,44 @@ def test_error_rate_queries_use_status_filter_and_aggregation(monkeypatch):
 
     assert captured[0] == (
         "sum by (service_name, http_route) "
-        "(rate(http_request_total[1m]))"
+        "(increase(http_request_total[1m]))"
     )
     assert captured[1] == (
         'sum by (service_name, http_route) '
-        '(rate(http_request_total{http_status_code=~"5.."}[1m]))'
+        '(increase(http_request_total{http_status_code=~"5.."}[1m]))'
     )
     assert result[("payment-service", "/charge")] == 0.2
+
+
+def test_p95_latency_falls_back_to_longer_window_when_short_window_is_nan(monkeypatch):
+    client = PrometheusClient("http://localhost:9090")
+    captured = []
+
+    def fake_query(promql):
+        captured.append(promql)
+        if "[1m]" in promql:
+            return {
+                "result": [
+                    {
+                        "metric": {"service_name": "payment-service", "http_route": "/charge"},
+                        "value": [0, "NaN"],
+                    }
+                ]
+            }
+        return {
+            "result": [
+                {
+                    "metric": {"service_name": "payment-service", "http_route": "/charge"},
+                    "value": [0, "4.75"],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(client, "query", fake_query)
+
+    result = client.get_p95_latency_by_service_endpoint()
+
+    assert len(captured) == 2
+    assert "[1m]" in captured[0]
+    assert "[5m]" in captured[1]
+    assert result[("payment-service", "/charge")] == 4.75

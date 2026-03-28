@@ -20,31 +20,37 @@ class CascadeConfig:
     """Configuration for RCA-lite cascade emission."""
 
     state_slots: Sequence[str] = (
+        "frontend",
         "gateway",
         "auth",
-        "catalog",
-        "order",
+        "checkout",
         "payment",
         "db",
     )
     service_aliases: Dict[str, str] = field(
         default_factory=lambda: {
+            "frontend": "frontend",
+            "frontend-service": "frontend",
             "gateway-service": "gateway",
             "gateway": "gateway",
+            "main-app": "gateway",
+            "microservices-demo": "gateway",
             "auth-service": "auth",
             "auth": "auth",
-            "catalog-service": "catalog",
-            "catalog": "catalog",
-            "order-service": "order",
-            "order": "order",
-            "checkoutservice": "order",
+            "checkout": "checkout",
+            "checkoutservice": "checkout",
+            "catalog-service": "checkout",
+            "catalog": "checkout",
+            "order-service": "checkout",
+            "order": "checkout",
+            "orderservice": "checkout",
             "payment-service": "payment",
             "payment": "payment",
+            "paymentservice": "payment",
             "postgres": "db",
             "redis": "db",
             "orders-db": "db",
             "db": "db",
-            "microservices-demo": "gateway",
         }
     )
     secondary_threshold: float = 0.5

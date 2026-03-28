@@ -10,7 +10,7 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 # OpenTelemetry imports
 from shared.telemetry import setup_opentelemetry, instrument_fastapi_app
@@ -177,7 +177,7 @@ async def health_check(
     is_healthy, response = build_health_response(checks)
     status_code = 200 if is_healthy else 503
 
-    return {"status_code": status_code, **response}
+    return JSONResponse(content=response, status_code=status_code)
 
 
 @app.get("/metrics", tags=["monitoring"])

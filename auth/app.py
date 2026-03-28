@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -17,6 +18,7 @@ from models import User, Session as SessionModel, ENABLE_SESSIONS
 
 from shared.db import get_db_session
 from shared.metrics import get_metrics_text
+from shared.otel_metrics import try_get_metrics
 from shared.health import check_database, check_redis, build_health_response
 from shared.redis_client import get_redis_client
 
@@ -82,9 +84,15 @@ async def validate_auth(
             session = result.scalars().first()
 
             if not session:
+                metrics = try_get_metrics()
+                if metrics is not None:
+                    metrics.record_auth_failure("token_not_found")
                 return ValidateResponse(valid=False, message="Token not found")
                 
             if session.expires_at < datetime.utcnow():
+                metrics = try_get_metrics()
+                if metrics is not None:
+                    metrics.record_auth_failure("token_expired")
                 return ValidateResponse(valid=False, message="Token expired")
 
             return ValidateResponse(valid=True, user_id=str(session.user_id), message="Token valid")
@@ -95,11 +103,17 @@ async def validate_auth(
             user = result.scalars().first()
 
             if not user:
+                metrics = try_get_metrics()
+                if metrics is not None:
+                    metrics.record_auth_failure("invalid_username")
                 return ValidateResponse(valid=False, message="Invalid credentials")
 
             if verify_password(request.password, user.password):
                 return ValidateResponse(valid=True, user_id=str(user.id), message="Credentials valid")
 
+            metrics = try_get_metrics()
+            if metrics is not None:
+                metrics.record_auth_failure("invalid_password")
             return ValidateResponse(valid=False, message="Invalid credentials")
 
         else:
@@ -121,10 +135,16 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db_session
         user = result.scalars().first()
 
         if not user:
+            metrics = try_get_metrics()
+            if metrics is not None:
+                metrics.record_auth_failure("user_not_found")
             raise HTTPException(status_code=401, detail="User not found")
 
         # Verify password
         if not verify_password(request.password, user.password):
+            metrics = try_get_metrics()
+            if metrics is not None:
+                metrics.record_auth_failure("invalid_password")
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         # Create session if enabled
@@ -168,7 +188,7 @@ async def health_check(
     is_healthy, response = build_health_response(checks)
     status_code = 200 if is_healthy else 503
 
-    return {"status_code": status_code, **response}
+    return JSONResponse(content=response, status_code=status_code)
 
 
 @router.get("/metrics", tags=["monitoring"])
