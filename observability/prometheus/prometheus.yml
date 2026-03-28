@@ -1,8 +1,16 @@
-# Prometheus Configuration for OTel Collector Metrics
+# Prometheus Configuration - Component 1 Metrics Pipeline
 #
-# This file configures Prometheus to scrape metrics from the OpenTelemetry Collector.
-# The OTel Collector exposes metrics at http://otel-collector:8889/metrics
-# from all microservices that send telemetry via OTLP.
+# CORRECT FLOW: Services → OTLP → OTel Collector → Prometheus scraper → Prometheus storage
+#
+# This configures Prometheus to SCRAPE metrics FROM the OTel Collector.
+# The OTel Collector aggregates metrics from all microservices via OTLP.
+#
+# METRICS FLOW:
+# 1. Services emit metrics via OpenTelemetry SDK
+# 2. Metrics sent via OTLP to OTel Collector (port 4317)
+# 3. OTel Collector processes and exposes at http://otel-collector:8889/metrics
+# 4. Prometheus scrapes every 2s from OTel Collector (this config)
+# 5. Prometheus stores and makes metrics queryable via PromQL
 #
 # Metrics collected:
 #  • http_request_total (counter): requests per service/endpoint/status

@@ -15,6 +15,7 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased, ParentBased
 
 # Note: Instrumentation imports re-enabled with updated packages
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -48,6 +49,7 @@ def setup_opentelemetry(
     service_name: str,
     otlp_endpoint: Optional[str] = None,
     enable_prometheus_metrics: bool = True,
+    sampling_rate: float = 0.1,  # 10% sampling for production scalability
 ) -> tuple:
     """
     Initialize OpenTelemetry for a microservice.
@@ -61,9 +63,17 @@ def setup_opentelemetry(
     # Create resource with service name
     resource = Resource(attributes={SERVICE_NAME: service_name})
 
-    # Setup Tracer Provider
+    # Setup Tracer Provider with production-ready sampling
     trace_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
-    trace_provider = TracerProvider(resource=resource)
+    
+    # Configure sampling: Parent-based with configurable sampling rate
+    # This ensures we don't overwhelm the system with 100% tracing
+    sampler = ParentBased(root=TraceIdRatioBased(sampling_rate))
+    
+    trace_provider = TracerProvider(
+        resource=resource,
+        sampler=sampler
+    )
     trace_provider.add_span_processor(BatchSpanProcessor(trace_exporter))
     trace.set_tracer_provider(trace_provider)
 
