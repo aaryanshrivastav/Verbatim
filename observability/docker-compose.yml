@@ -3,23 +3,39 @@ version: '3.8'
 
 services:
 
+  # ============================================================================
+  # OTel Collector: Central hub for telemetry from microservices
+  # ============================================================================
+  # Receives traces, metrics, and logs from microservices via OTLP
+  # Routes to: Jaeger (traces), Prometheus (metrics), Loki (logs)
+  # See: otel-collector-config.yaml for pipeline configuration
+  # Docs: OTEL_PIPELINE_GUIDE.md (Part 1) for components and architecture
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.88.0
     command:
       - "--config=/etc/otel-collector-config.yaml"
     ports:
-      - "4317:4317"   # OTLP gRPC receiver
-      - "4318:4318"   # OTLP HTTP receiver
-      - "9411:9411"   # Zipkin receiver
+      - "4317:4317"   # OTLP gRPC receiver (primary: microservices send here)
+      - "4318:4318"   # OTLP HTTP receiver (fallback)
+      - "9411:9411"   # Zipkin receiver (legacy tracing format)
+      - "8889:8889"   # Prometheus metrics exporter (Prometheus scrapes here)
     volumes:
+      # Mount config file: otel-collector-config.yaml defines receivers/processors/exporters
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     depends_on:
       - prometheus
       - jaeger
       - loki
     environment:
-      - GOGC=80
+      - GOGC=80   # Go garbage collection tuning for high-throughput telemetry
 
+  # ============================================================================
+  # Prometheus: Time-series database for metrics
+  # ============================================================================
+  # Scrapes metrics from OTel Collector (which aggregates from microservices)
+  # Stores time-series data and exposes PromQL query API for Grafana/dashboards
+  # See: prometheus/prometheus.yml for scrape config
+  # Docs: OTEL_PIPELINE_GUIDE.md (Part 2) for metrics flow
   prometheus:
     image: prom/prometheus
     volumes:
@@ -27,14 +43,27 @@ services:
     ports:
       - "9090:9090"
 
+  # ============================================================================
+  # Jaeger: Distributed tracing backend
+  # ============================================================================
+  # Receives spans from OTel Collector (which collects from microservices)
+  # Stores traces and provides UI for root cause analysis at http://localhost:16686
+  # Docs: OTEL_PIPELINE_GUIDE.md (Part 2-3) for trace flow and incident analysis
   jaeger:
     image: jaegertracing/all-in-one:latest
     ports:
-      - "16686:16686"
-      - "14268:14268"
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector receiver
+      - "14250:14250"  # Jaeger gRPC (from OTel Collector)
     environment:
       - COLLECTOR_OTLP_ENABLED=true
 
+  # ============================================================================
+  # Loki: Log aggregation backend
+  # ============================================================================
+  # Receives logs from OTel Collector (which collects from microservices)
+  # Stores structured JSON logs with labels for searching via Grafana
+  # Docs: OTEL_PIPELINE_GUIDE.md (Part 2-3) for log flow and patterns
   loki:
     image: grafana/loki:2.9.3
     command: -config.file=/etc/loki/local-config.yaml -validation.allow-structured-metadata=false
@@ -43,6 +72,10 @@ services:
     ports:
       - "3100:3100"
 
+  # ============================================================================
+  # Promtail: Log shipper (optional, for local forwarding)
+  # ============================================================================
+  # Can be used for Pod-level log collection; microservices use OTLP directly
   promtail:
     image: grafana/promtail:latest
     volumes:

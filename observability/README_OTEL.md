@@ -2,6 +2,20 @@
 
 Complete instrumentation of microservices with OpenTelemetry for metrics, traces, and logs.
 
+## 📚 Documentation (Start Here)
+
+- **[INDEX.md](./INDEX.md)** — Quick navigation and document selection guide
+- **[OTEL_PIPELINE_GUIDE.md](./OTEL_PIPELINE_GUIDE.md)** — Comprehensive guide covering:
+  - Part 1: OTel Collector components and pipelines
+  - Part 2: How k6 traffic flows through traces/metrics/logs
+  - Part 3: Detailed mapping of 7 incident scenarios
+  - Part 4: Verification steps for each backend
+  - Part 5: Demo checklists for each incident
+
+- **[PIPELINE_QUICK_REFERENCE.md](./PIPELINE_QUICK_REFERENCE.md)** — One-page visual summary with signal patterns
+
+- **[otel-collector-config.yaml](./otel-collector-config.yaml)** — Configuration with inline documentation
+
 ## Components
 
 ### Metrics Pipeline
@@ -24,32 +38,36 @@ Complete instrumentation of microservices with OpenTelemetry for metrics, traces
 
 ## Architecture
 
+Three backends, three signal types: **Traces** (Jaeger), **Metrics** (Prometheus), **Logs** (Loki)
+
 ```
-┌─────────────────────────────────────────────────────┐
-│         Microservices (FastAPI + OpenTelemetry)     │
-│  ┌──────────┬──────────┬──────────┬──────────────┐  │
-│  │   Auth   │ Catalog  │  Order   │  Payment     │  │
-│  │ Service  │ Service  │ Service  │  Service     │  │
-│  └──────────┴──────────┴──────────┴──────────────┘  │
-│             OTLP/gRPC (port 4317)                   │
-└────────────────────┬────────────────────────────────┘
-                     │
-             ┌───────▼────────┐
-             │ OTel Collector │
-             │ (port 4317)    │
-             └───┬────────┬───┘
-                 │        │
-          ┌──────▼──┐  ┌───▼──────┐  ┌────────┐
-          │Prometheus  │  Jaeger  │  │ Loki   │
-          │(9090)   │  │(16686)   │  │(3100)  │
-          └──┬──────┘  └────┬─────┘  └────┬───┘
-             │              │             │
-             └──────┬───────┴─────────────┘
-                    │
-              ┌─────▼──────┐
-              │  Grafana   │
-              │  (3000)    │
-              └────────────┘
+┌────────────────────────────────────────────────────────┐
+│  Microservices (FastAPI + OpenTelemetry SDK)           │
+│  Auth │ Catalog │ Order │ Payment │ Gateway            │
+│  Emit: spans, metrics, structured JSON logs            │
+└────────────────────┬─────────────────────────────────┘
+                     │ OTLP/gRPC port 4317
+                     ▼
+          ┌──────────────────────────────┐
+          │  OTel Collector              │
+          │ ─────────────────────────    │
+          │ Receivers: OTLP + Zipkin     │
+          │ Processors:                  │
+          │  • batch (10s/1024 items)    │
+          │  • memory_limiter (512 MB)   │
+          │  • attributes (enrich data)  │
+          │ Exporters: 3 routes          │
+          └──┬────────┬───────────┬──────┘
+             │ Traces │ Metrics   │ Logs
+             ▼        ▼           ▼
+          Jaeger   Prometheus   Loki
+        (16686)    (9090)       (3100)
+             │        │          │
+             └────────┼──────────┘
+                      ▼
+                  Grafana (3000)
+            Dashboard + Alerts +
+            Log Exploration
 ```
 
 ## Setup

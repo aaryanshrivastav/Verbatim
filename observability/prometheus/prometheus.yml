@@ -1,7 +1,32 @@
+# Prometheus Configuration for OTel Collector Metrics
+#
+# This file configures Prometheus to scrape metrics from the OpenTelemetry Collector.
+# The OTel Collector exposes metrics at http://otel-collector:8889/metrics
+# from all microservices that send telemetry via OTLP.
+#
+# Metrics collected:
+#  • http_request_total (counter): requests per service/endpoint/status
+#  • http_request_duration_seconds (histogram): latency percentiles
+#  • http_error_total (counter): failures per service/endpoint
+#  • external_call_duration_seconds (histogram): dependency call latency
+#  • external_call_errors_total (counter): dependency failures
+#  • db_query_duration_seconds (histogram): database query duration
+#  • cache_hits_total / cache_misses_total (counters): cache efficiency
+#  • retry_counter_total (counter): retry attempts
+#
+# See: observability/OTEL_PIPELINE_GUIDE.md (Part 2) for metric flow details
+
 global:
   scrape_interval: 5s
 
 scrape_configs:
+  # Scrape OTel Collector metrics (from microservices via OTLP)
+  - job_name: "otel-collector"
+    static_configs:
+      - targets: ["otel-collector:8889"]
+    metrics_path: "/metrics"
+  
+  # Scrape legacy services endpoint (if running services locally)
   - job_name: "services"
     static_configs:
       - targets: ["host.docker.internal:8000"]

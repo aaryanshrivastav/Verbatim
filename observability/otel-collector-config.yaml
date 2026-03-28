@@ -1,50 +1,124 @@
+# ============================================================================
+# OpenTelemetry Collector Configuration for Microservices Observability
+# ============================================================================
+# 
+# This config routes telemetry from 5 microservices (auth, catalog, order,
+# payment, gateway) to three backends: Jaeger (traces), Prometheus (metrics),
+# Loki (logs). Each pipeline is specialized by telemetry type.
+#
+# Data Flow:
+#   Microservices (OTel SDK)
+#          ↓ OTLP/gRPC (ports 4317, 4318)
+#   OTel Collector (this file)
+#          ├→ Traces → Jaeger (16686)
+#          ├→ Metrics → Prometheus (9090)
+#          └→ Logs → Loki (3100)
+#
+
+# ============================================================================
+# RECEIVERS: What the collector listens for
+# ============================================================================
 receivers:
+  # OTLP/gRPC receiver (primary)
+  # Receives traces, metrics, logs from OpenTelemetry SDK in services
+  # Port 4317: gRPC (used by SDKs, faster, binary protocol)
+  # Port 4318: HTTP (fallback, JSON, slower)
   otlp:
     protocols:
       grpc:
-        endpoint: 0.0.0.0:4317
+        endpoint: 0.0.0.0:4317  # Primary: OTel SDK sends traces/metrics/logs here
       http:
-        endpoint: 0.0.0.0:4318
+        endpoint: 0.0.0.0:4318  # Fallback: HTTP alternative
+  
+  # Zipkin receiver (legacy support, not used in this demo)
   zipkin:
     endpoint: 0.0.0.0:9411
 
+# ============================================================================
+# PROCESSORS: Transformations and filters in the pipeline
+# ============================================================================
 processors:
+  # Batch processor: Aggregates telemetry into batches for efficiency
+  # Reduces network overhead and improves throughput
   batch:
-    timeout: 10s
-    send_batch_size: 1024
+    timeout: 10s              # Wait max 10s before sending partial batch
+    send_batch_size: 1024     # Send immediately when 1024 items collected
+  
+  # Memory limiter: Prevents OTel Collector from consuming unbounded memory
+  # Drops telemetry if quota reached (prevents cascade failures)
   memory_limiter:
-    check_interval: 1s
-    limit_mib: 512
+    check_interval: 1s        # Check every 1s
+    limit_mib: 512            # Max 512 MB memory for collector process
+  
+  # Attributes processor: Adds context (labels/fields) to all telemetry
+  # Enriches traces/metrics/logs with environment metadata
   attributes:
     actions:
       - key: service.deployment.environment
         value: production
-        action: insert
+        action: insert        # Add "environment=production" to every span/metric
 
+# ============================================================================
+# EXPORTERS: Where telemetry is sent
+# ============================================================================
 exporters:
+  # Prometheus exporter: Exposes metrics for Prometheus scrape
+  # Prometheus scrapes metrics at http://otel-collector:8889/metrics every 15s
+  # Used by: Grafana for dashboards, alerting rules
   prometheus:
     endpoint: "0.0.0.0:8889"
+  
+  # Jaeger exporter: Sends traces to Jaeger backend
+  # Traces appear in Jaeger UI at http://localhost:16686
+  # Used by: Debugging latency, distributed tracing, trace correlation
   jaeger:
-    endpoint: jaeger:14250
+    endpoint: jaeger:14250    # Jaeger collector gRPC port
     tls:
       insecure: true
+  
+  # Loki exporter: Sends logs to Loki log aggregation
+  # Logs searchable in Grafana via Loki datasource at http://localhost:3100
+  # Used by: Debugging errors, finding patterns, correlating with metrics/traces
   loki:
     endpoint: http://loki:3100/loki/api/v1/push
     default_labels_enabled:
-      externalhost: true
-      resource: true
+      externalhost: true      # Include hostname in Loki labels
+      resource: true          # Include resource attributes (service, pod, etc)
 
+# ============================================================================
+# SERVICE: Pipelines that wire receivers → processors → exporters
+# ============================================================================
 service:
   pipelines:
+    # ========================================================================
+    # TRACES PIPELINE: FastAPI spans → (batch, memory limit, enrich) → Jaeger
+    # ========================================================================
+    # Used for: Request tracing, latency distribution, finding slow paths
+    # Triggered by: Any k6 scenario (all scenarios make HTTP requests)
+    # Example trace: k6 POST /orders → gateway span → order span → payment span 
     traces:
-      receivers: [otlp, zipkin]
-      processors: [memory_limiter, batch, attributes]
-      exporters: [jaeger]
+      receivers: [otlp, zipkin]  # Listen on OTLP/gRPC and Zipkin
+      processors: [memory_limiter, batch, attributes]  # Limit memory, batch, add labels
+      exporters: [jaeger]        # Send to Jaeger for UI visualization
+    
+    # ========================================================================
+    # METRICS PIPELINE: Counters/histograms → (batch, limit) → Prometheus
+    # ========================================================================
+    # Used for: Performance dashboards, alerting, SLO tracking
+    # Metrics recorded by: http middleware, database calls, cache hits/misses
+    # Example metric spike: baseline scenario → http_req_duration{service="gateway"} p95
     metrics:
-      receivers: [otlp]
-      processors: [memory_limiter, batch, attributes]
-      exporters: [prometheus]
+      receivers: [otlp]          # OTel SDK sends Counter/Histogram/Gauge
+      processors: [memory_limiter, batch, attributes]  # Limit memory, batch, add labels
+      exporters: [prometheus]    # Prometheus scrapes /metrics endpoint
+    
+    # ========================================================================
+    # LOGS PIPELINE: JSON structured logs → (batch, limit) → Loki
+    # ========================================================================
+    # Used for: Error investigation, searching for patterns, debugging
+    # Logs emitted by: Error handlers, auth failures, retry loops, timeouts
+    # Example log search: {service="payment"} |= "timeout" (find payment timeouts)
     logs:
-      receivers: [otlp]
-      processors: [memory_limiter, batch, attributes]
-      exporters: [loki]
+      receivers: [otlp]          # OTel SDK sends LogRecord events
+      processors: [memory_limiter, batch, attributes]  # Limit memory, batch, add labels
+      exporters: [loki]          # Loki stores logs with labels for Grafana queries

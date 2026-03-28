@@ -24,6 +24,59 @@ Then open http://localhost:8000/docs for the API documentation.
 
 **Note**: This runs all services under a single FastAPI instance for development. Each service is accessible at `/auth`, `/products`, `/orders`, `/charge`, `/api/v1`, etc.
 
+---
+
+## 📊 Observability Stack (Traces + Metrics + Logs)
+
+This demo includes **complete observability** with OpenTelemetry (OTel) instrumentation:
+
+### Quick Start Observability
+
+```bash
+# Start observability stack (Docker Compose)
+cd observability/
+docker-compose up -d
+
+# Services available:
+# - Jaeger UI: http://localhost:16686 (distributed tracing)
+# - Prometheus: http://localhost:9090 (metrics)
+# - Grafana: http://localhost:3000 (dashboards + log exploration)
+# - Loki: http://localhost:3100 (log aggregation)
+```
+
+### What's Instrumented
+
+✅ **Traces**: Request spans across services via Jaeger  
+✅ **Metrics**: Counters and histograms via Prometheus (latency, error rates, cache hits)  
+✅ **Logs**: Structured JSON logs via Loki (error messages, patterns)  
+
+### Documentation
+
+- **[observability/OTEL_PIPELINE_GUIDE.md](./observability/OTEL_PIPELINE_GUIDE.md)** — Complete guide with:
+  - Pipeline architecture (receivers → processors → exporters)
+  - How k6 traffic flows through traces/metrics/logs
+  - Detailed mappings for 7 incident scenarios (DB failure, Redis down, DDoS, etc.)
+  - Verification steps for each backend
+  - Runnable demo checklists
+
+- **[observability/PIPELINE_QUICK_REFERENCE.md](./observability/PIPELINE_QUICK_REFERENCE.md)** — One-page visual summary
+
+### Running k6 Load Tests with Observability
+
+```bash
+# Run baseline load test
+k6 run loadtest/scenarios/01_baseline.js --vus 10 --duration 2m
+
+# Observe:
+# 1. Jaeger: Filter by service=gateway, see traces appearing
+# 2. Prometheus: Query http_request_total, see metrics accumulating
+# 3. Grafana/Loki: Search logs {service="order"}
+```
+
+For detailed incident scenarios (payment timeouts, retry storms, etc.), see **observability/OTEL_PIPELINE_GUIDE.md** Part 5.
+
+---
+
 ## Architecture
 
 The application includes 5 microservices integrated into a single FastAPI app:
