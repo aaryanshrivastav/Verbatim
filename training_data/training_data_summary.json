@@ -1,0 +1,40 @@
+{
+  "total_incidents": 546,
+  "total_scenarios": 546,
+  "total_service_labels": 2004,
+  "label_distribution": {
+    "root_cause": 546,
+    "not_root_cause": 1458,
+    "balance_ratio": 0.37448559670781895
+  },
+  "failure_type_distribution": {
+    "db_failure": 80,
+    "redis_failure": 80,
+    "gateway_ddos": 70,
+    "auth_overload": 102,
+    "payment_timeout": 102,
+    "sql_injection": 56,
+    "retry_storm": 56
+  },
+  "anomaly_type_distribution": {
+    "mixed": 799,
+    "unknown": 1198,
+    "latency_spike": 7
+  },
+  "class_balance_analysis": {
+    "note": "Binary classification is naturally imbalanced: 1 root cause per incident, N-1 non-causes",
+    "positive_class_fraction": 0.27245508982035926,
+    "recommendation": "Use class_weight='balanced' in LogisticRegression or RandomForest"
+  },
+  "format_info": {
+    "structure": "Each JSONL line is an incident with Component 2 event format",
+    "incident_fields": [
+      "incident_id",
+      "endpoint",
+      "time_window_start",
+      "time_window_end",
+      "anomalies"
+    ],
+    "labels_structure": "Array of {service, endpoint, label, confidence, method, reasoning}"
+  }
+}

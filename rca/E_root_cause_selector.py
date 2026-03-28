@@ -4,7 +4,7 @@ Selects top candidate and computes confidence.
 """
 
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from rca.models import Candidate, ConfidenceBucket, Confidence
 from rca.config import RCAConfig
