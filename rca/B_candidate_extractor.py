@@ -43,10 +43,17 @@ class CandidateExtractor:
             List of Candidate objects
         """
         candidates = []
+        severity_by_service = {
+            self.config.normalize_service_name(anomaly.service): float(anomaly.severity)
+            for anomaly in incident.anomalies
+        }
         
         for service, trace_metric in trace_metrics.items():
             # Get metrics severity from incident
-            metrics_severity = incident.get_anomaly_severity(service) or 0.0
+            metrics_severity = severity_by_service.get(
+                self.config.normalize_service_name(service),
+                0.0,
+            )
             
             # Check trace coverage threshold
             if trace_metric.appears_in_traces < self.config.trace_coverage_threshold:

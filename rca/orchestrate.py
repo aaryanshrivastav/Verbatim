@@ -13,6 +13,7 @@ This will:
 import sys
 import logging
 import argparse
+import subprocess
 from pathlib import Path
 
 # Add parent directory to path so RCA modules can be imported

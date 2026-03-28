@@ -26,7 +26,10 @@ class TraceGraphBuilder:
             config: RCAConfig instance
         """
         self.config = config
-        self.jaeger = JaegerClient(config.jaeger_base_url)
+        self.jaeger = JaegerClient(
+            config.jaeger_base_url,
+            allow_synthetic_fallback=config.allow_synthetic_trace_fallback,
+        )
         
         # Ring buffers for baseline durations: (service, endpoint) -> RingBuffer
         self.baseline_buffers: Dict[Tuple[str, str], RingBuffer] = {}
@@ -75,20 +78,24 @@ class TraceGraphBuilder:
             incident: Parent incident
             service_metrics: Dict to update
         """
+        seen_in_trace = set()
         for service in trace.get_service_names():
             if service not in service_metrics:
                 service_metrics[service] = {
                     "span_count": 0,
                     "suspicious_count": 0,
-                    "durations": []
+                    "durations": [],
+                    "trace_hits": 0,
                 }
             
             # Get span metrics for this service
             span_count, error_count, durations = self.jaeger.get_service_span_metrics(
                 trace, service
             )
-            
             service_metrics[service]["span_count"] += span_count
+            if span_count > 0 and service not in seen_in_trace:
+                service_metrics[service]["trace_hits"] += 1
+                seen_in_trace.add(service)
             
             # Update baseline with these durations
             self._update_baseline(service, incident.endpoint, durations)
@@ -159,7 +166,9 @@ class TraceGraphBuilder:
             suspicious_count = metrics["suspicious_count"]
             
             # Compute ratios
-            trace_coverage = 1.0 if span_count > 0 else 0.0  # Appears in trace if any spans
+            trace_coverage = (
+                metrics.get("trace_hits", 0) / total_traces if total_traces > 0 else 0.0
+            )
             suspicious_ratio = (
                 suspicious_count / span_count if span_count > 0 else 0.0
             )

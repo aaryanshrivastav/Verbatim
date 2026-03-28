@@ -15,9 +15,6 @@ logger = logging.getLogger(__name__)
 class StateVectorBuilder:
     """Builds state vector for RL agent."""
     
-    # Fixed service set (order matters for state vector)
-    FIXED_SERVICES = ["frontend", "gateway", "auth", "checkout", "payment", "db"]
-    
     def __init__(self, config: RCAConfig):
         """Initialize builder.
         
@@ -40,11 +37,16 @@ class StateVectorBuilder:
         Returns:
             List of 6 integers [s0, s1, ..., s5]
         """
+        max_per_slot = {slot: 0.0 for slot in self.config.state_slots}
+        for anomaly in incident.anomalies:
+            slot = self.config.state_slot_for(anomaly.service)
+            if slot is None:
+                continue
+            max_per_slot[slot] = max(max_per_slot[slot], float(anomaly.severity))
+
         state_vector = []
-        
-        for service in self.FIXED_SERVICES:
-            severity = incident.get_anomaly_severity(service) or 0.0
-            
+        for slot in self.config.state_slots:
+            severity = max_per_slot[slot]
             if severity >= self.config.critical_severity_threshold:
                 state = 2
             elif severity >= self.config.degraded_severity_threshold:

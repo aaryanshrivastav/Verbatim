@@ -1,7 +1,7 @@
 """API server for RCA pipeline (optional HTTP interface)."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 try:
@@ -44,6 +44,16 @@ class IncidentRequest(BaseModel):
     anomalies: list  # [{service, severity, anomaly_type}, ...]
 
 
+def _parse_datetime(value: str) -> datetime:
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+@app.post("/rca/analyze", response_model=RCAOutput)
 @app.post("/analyze", response_model=RCAOutput)
 async def analyze_incident(request: IncidentRequest) -> RCAOutput:
     """Analyze incident and return root cause.
@@ -56,8 +66,8 @@ async def analyze_incident(request: IncidentRequest) -> RCAOutput:
     """
     try:
         # Parse timestamps
-        start = datetime.fromisoformat(request.time_window_start)
-        end = datetime.fromisoformat(request.time_window_end)
+        start = _parse_datetime(request.time_window_start)
+        end = _parse_datetime(request.time_window_end)
         
         # Build incident
         incident = Incident(
@@ -85,6 +95,7 @@ async def analyze_incident(request: IncidentRequest) -> RCAOutput:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/rca/health")
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""

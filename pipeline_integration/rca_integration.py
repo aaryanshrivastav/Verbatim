@@ -125,7 +125,10 @@ class RCAIntegration:
             rca_output = self.pipeline.analyze(rca_incident)
 
             # Convert RCA output to Decision-compatible format
-            decision_output = self._convert_output(rca_output)
+            decision_output = self._convert_output(
+                rca_output,
+                incident_started_at=rca_incident.time_window_start,
+            )
 
             logger.info(
                 f"RCA analysis succeeded: incident={rca_incident.incident_id}, "
@@ -191,7 +194,10 @@ class RCAIntegration:
         )
 
     @staticmethod
-    def _convert_output(rca_output: Any) -> DecisionRCAOutput:
+    def _convert_output(
+        rca_output: Any,
+        incident_started_at: Optional[datetime] = None,
+    ) -> DecisionRCAOutput:
         """Convert RCA pipeline output to Decision-compatible RCAOutput.
 
         Args:
@@ -228,7 +234,7 @@ class RCAIntegration:
             state_vector=list(rca_output.state_vector),
             original_severity=float(rca_output.original_severity),
             time_window=time_window,
-            incident_started_at=None,  # Will be set in pipeline
+            incident_started_at=incident_started_at,
         )
 
     @staticmethod
