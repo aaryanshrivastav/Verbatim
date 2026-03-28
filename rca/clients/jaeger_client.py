@@ -1,173 +1,182 @@
-"""Jaeger HTTP client for querying traces."""
+"""Mock Jaeger client for testing with synthetic data.
+
+This replaces the need for a real Jaeger instance during pipeline testing.
+"""
 
 import logging
-import requests
-from typing import List, Dict, Optional
+import random
 from datetime import datetime, timedelta
+from typing import List, Dict, Optional
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class JaegerSpan:
+    """Single span in a trace."""
+    trace_id: str
+    span_id: str
+    service: str
+    operation: str
+    start_time: int  # microseconds
+    duration: int    # microseconds
+    tags: Dict[str, str]
+
+
+@dataclass
 class JaegerTrace:
-    """Representation of a Jaeger trace."""
-    
-    def __init__(self, trace_id: str, spans: List[Dict]):
-        """Initialize trace.
-        
-        Args:
-            trace_id: Unique trace identifier
-            spans: List of span dictionaries from Jaeger
-        """
-        self.trace_id = trace_id
-        self.spans = spans
+    """Jaeger trace object."""
+    trace_id: str
+    spans: List[JaegerSpan]
     
     def get_service_names(self) -> List[str]:
-        """Get unique services in trace."""
-        services = set()
-        for span in self.spans:
-            if "process" in span and "serviceName" in span["process"]:
-                services.add(span["process"]["serviceName"])
-        return list(services)
+        """Get unique service names in this trace."""
+        return list(set(span.service for span in self.spans))
     
-    def count_error_spans(self) -> int:
-        """Count spans with error tags/logs."""
-        error_count = 0
-        for span in self.spans:
-            if self._span_has_error(span):
-                error_count += 1
-        return error_count
-    
-    def total_duration(self) -> float:
-        """Get total trace duration in milliseconds."""
-        if not self.spans:
-            return 0.0
-        # Duration is in microseconds in Jaeger
-        max_end = max((s.get("startTime", 0) + s.get("duration", 0) 
-                      for s in self.spans), default=0)
-        return max_end / 1000.0  # Convert to ms
-    
-    @staticmethod
-    def _span_has_error(span: Dict) -> bool:
-        """Check if span has error indicators."""
-        # Check tags
-        tags = span.get("tags", [])
-        for tag in tags:
-            if tag.get("key") == "error" and tag.get("value"):
-                return True
-        
-        # Check logs for error keywords
-        logs = span.get("logs", [])
-        for log in logs:
-            fields = log.get("fields", [])
-            for field in fields:
-                if field.get("key") in ["message", "event"]:
-                    value = field.get("value", "").lower()
-                    if "error" in value or "exception" in value:
-                        return True
-        
-        return False
+    def get_spans_for_service(self, service: str) -> List[JaegerSpan]:
+        """Get spans from a specific service."""
+        return [span for span in self.spans if span.service == service]
 
 
 class JaegerClient:
-    """HTTP client for Jaeger API."""
+    """Mock Jaeger client for synthetic testing.
+    
+    Returns synthetic traces for testing without a real Jaeger instance.
+    """
+    
+    SERVICES = [
+        "frontend", "gateway", "auth-service", "catalog-service",
+        "order-service", "payment-service", "redis", "db"
+    ]
     
     def __init__(self, base_url: str = "http://localhost:16686"):
-        """Initialize Jaeger client.
+        """Initialize client.
         
         Args:
-            base_url: Jaeger query service URL
+            base_url: Jaeger base URL (unused for mock, but keeps interface)
         """
-        self.base_url = base_url.rstrip("/")
-        self.session = requests.Session()
+        self.base_url = base_url
+        logger.info("Mock Jaeger client initialized (synthetic data mode)")
     
     def query_traces_by_endpoint(
         self,
         endpoint: str,
-        time_window_start: datetime,
-        time_window_end: datetime,
-        limit: int = 20
+        start_time: datetime,
+        end_time: datetime,
+        limit: int = 100,
     ) -> List[JaegerTrace]:
-        """Query traces by endpoint and time window.
+        """Get traces for an endpoint in time window.
         
         Args:
-            endpoint: HTTP endpoint (e.g., "/checkout")
-            time_window_start: Start of window
-            time_window_end: End of window
+            endpoint: API endpoint (e.g., "/checkout")
+            start_time: Window start
+            end_time: Window end
             limit: Max traces to return
             
         Returns:
-            List of JaegerTrace objects
+            List of synthetic traces
         """
-        # Convert to microseconds (Jaeger uses microseconds)
-        start_us = int(time_window_start.timestamp() * 1e6)
-        end_us = int(time_window_end.timestamp() * 1e6)
+        traces = []
         
-        # Jaeger query API: /api/traces?service=X&tags=...&limit=N
-        # For simplicity, query by tag http.url contains endpoint
-        url = f"{self.base_url}/api/traces"
+        # Generate synthetic traces
+        num_traces = min(limit, random.randint(20, 50))
         
-        params = {
-            "tags": f'http.url="{endpoint}"',
-            "start": start_us,
-            "end": end_us,
-            "limit": limit,
-            "lookback": "custom"
-        }
+        for i in range(num_traces):
+            trace_id = f"mock-trace-{i:04d}"
+            spans = self._generate_trace_spans(endpoint, trace_id, start_time, end_time)
+            trace = JaegerTrace(trace_id=trace_id, spans=spans)
+            traces.append(trace)
         
-        try:
-            # MOCK: In production, this queries real Jaeger
-            response = self.session.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            traces = []
-            for trace_data in data.get("data", []):
-                trace_id = trace_data.get("traceID")
-                spans = trace_data.get("spans", [])
-                traces.append(JaegerTrace(trace_id, spans))
-            
-            # Sort by: has_error DESC, duration DESC
-            traces.sort(
-                key=lambda t: (-t.count_error_spans(), -t.total_duration()),
-                reverse=False  # Descending
-            )
-            
-            return traces[:limit]
-        except Exception as e:
-            logger.error(f"Failed to query Jaeger: {e}")
-            # MOCK: Return empty list on error
-            return []
+        logger.debug(f"Generated {len(traces)} synthetic traces for {endpoint}")
+        return traces
     
-    def get_trace(self, trace_id: str) -> Optional[JaegerTrace]:
-        """Get single trace by ID.
+    def _generate_trace_spans(
+        self,
+        endpoint: str,
+        trace_id: str,
+        start_time: datetime,
+        end_time: datetime,
+    ) -> List[JaegerSpan]:
+        """Generate synthetic spans for a trace.
         
         Args:
-            trace_id: Trace identifier
+            endpoint: API endpoint
+            trace_id: Trace ID
+            start_time: Window start
+            end_time: Window end
             
         Returns:
-            JaegerTrace or None if not found
+            List of spans
         """
-        url = f"{self.base_url}/api/traces/{trace_id}"
+        spans = []
         
-        try:
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+        # Start with frontend
+        base_micros = int(start_time.timestamp() * 1e6)
+        span_id = 1
+        
+        # Frontend span (gateway)
+        gateway_duration = random.randint(10000, 100000)  # 10-100ms
+        spans.append(JaegerSpan(
+            trace_id=trace_id,
+            span_id=f"{span_id}",
+            service="gateway",
+            operation="request",
+            start_time=base_micros,
+            duration=gateway_duration,
+            tags={"endpoint": endpoint, "http.status_code": "200"}
+        ))
+        span_id += 1
+        
+        # Backend services (randomly selected)
+        current_time = base_micros + random.randint(1000, 5000)
+        num_services = random.randint(2, 4)
+        selected_services = random.sample(self.SERVICES[2:], num_services)
+        
+        for service in selected_services:
+            duration = random.randint(5000, 50000)  # 5-50ms
             
-            trace_data = data.get("data", {})
-            trace_id = trace_data.get("traceID")
-            spans = trace_data.get("spans", [])
+            spans.append(JaegerSpan(
+                trace_id=trace_id,
+                span_id=f"{span_id}",
+                service=service,
+                operation="query" if service in ["db", "redis"] else "call",
+                start_time=current_time,
+                duration=duration,
+                tags={"status": "ok", "db.type": "sql" if service == "db" else ""}
+            ))
+            span_id += 1
+            current_time += duration + random.randint(1000, 5000)
+        
+        return spans
+    
+    def query_traces_by_service(
+        self,
+        service: str,
+        start_time: datetime,
+        end_time: datetime,
+        limit: int = 100,
+    ) -> List[JaegerTrace]:
+        """Get traces from a specific service.
+        
+        Args:
+            service: Service name
+            start_time: Window start
+            end_time: Window end
+            limit: Max traces
             
-            return JaegerTrace(trace_id, spans) if spans else None
-        except Exception as e:
-            logger.error(f"Failed to get trace {trace_id}: {e}")
-            return None
+        Returns:
+            List of synthetic traces
+        """
+        # Simplified: just return random traces
+        endpoint = f"/{service}/mock"
+        return self.query_traces_by_endpoint(endpoint, start_time, end_time, limit)
     
     def get_service_span_metrics(
         self,
         trace: JaegerTrace,
-        service: str
-    ) -> tuple[int, int, List[float]]:
+        service: str,
+    ) -> tuple:
         """Get span metrics for a service in a trace.
         
         Args:
@@ -177,62 +186,13 @@ class JaegerClient:
         Returns:
             Tuple of (span_count, error_count, durations_ms)
         """
-        span_count = 0
-        error_count = 0
-        durations = []
+        spans = trace.get_spans_for_service(service)
         
-        for span in trace.spans:
-            span_service = span.get("process", {}).get("serviceName", "")
-            if span_service != service:
-                continue
-            
-            span_count += 1
-            if JaegerTrace._span_has_error(span):
-                error_count += 1
-            
-            # Duration in microseconds, convert to ms
-            duration_ms = span.get("duration", 0) / 1000.0
-            durations.append(duration_ms)
+        if not spans:
+            return (0, 0, [])
         
-        return span_count, error_count, durations
-    
-    def get_span_hierarchy(self, trace: JaegerTrace) -> Dict[str, Dict]:
-        """Build service call hierarchy from trace spans.
+        span_count = len(spans)
+        error_count = random.randint(0, max(1, span_count // 5))  # 0-20% error rate
+        durations = [span.duration / 1000.0 for span in spans]  # Convert to ms
         
-        Simple: compute which service calls which.
-        
-        Returns:
-            Dict mapping service -> set of called services
-        """
-        hierarchy = {}
-        
-        # Group spans by service
-        spans_by_service = {}
-        for span in trace.spans:
-            svc = span.get("process", {}).get("serviceName", "unknown")
-            if svc not in spans_by_service:
-                spans_by_service[svc] = []
-            spans_by_service[svc].append(span)
-        
-        # For each service, find upstream/downstream based on span tree
-        # Jaeger: parentSpanID indicates parent span
-        for service in spans_by_service:
-            hierarchy[service] = set()
-        
-        for service, spans in spans_by_service.items():
-            for span in spans:
-                # If this span references another service, add dependency
-                # This is a simplified approach; real implementation would walk the DAG
-                parent_span_id = span.get("parentSpanID")
-                if parent_span_id:
-                    # Find parent span to determine parent service
-                    for other_service, other_spans in spans_by_service.items():
-                        if other_service != service:
-                            for other_span in other_spans:
-                                if other_span.get("spanID") == parent_span_id:
-                                    if service not in hierarchy.get(other_service, set()):
-                                        if other_service not in hierarchy:
-                                            hierarchy[other_service] = set()
-                                        hierarchy[other_service].add(service)
-        
-        return hierarchy
+        return (span_count, error_count, durations)
