@@ -71,19 +71,23 @@ exporters:
   # Jaeger exporter: Sends traces to Jaeger backend
   # Traces appear in Jaeger UI at http://localhost:16686
   # Used by: Debugging latency, distributed tracing, trace correlation
-  jaeger:
-    endpoint: jaeger:14250    # Jaeger collector gRPC port
+  otlp/jaeger:
+    endpoint: jaeger:4317    # Jaeger OTLP receiver
     tls:
       insecure: true
   
-  # Loki exporter: Sends logs to Loki log aggregation
+  # Loki exporter: Sends logs to Loki log aggregation (temporarily disabled)
   # Logs searchable in Grafana via Loki datasource at http://localhost:3100
   # Used by: Debugging errors, finding patterns, correlating with metrics/traces
-  loki:
-    endpoint: http://loki:3100/loki/api/v1/push
-    default_labels_enabled:
-      externalhost: true      # Include hostname in Loki labels
-      resource: true          # Include resource attributes (service, pod, etc)
+  # loki:
+  #   endpoint: http://loki:3100/loki/api/v1/push
+  #   default_labels_enabled:
+  #     externalhost: true      # Include hostname in Loki labels
+  #     resource: true          # Include resource attributes (service, pod, etc)
+  
+  # Logging exporter: Outputs logs to console (for debugging)
+  logging:
+    loglevel: info
 
 # ============================================================================
 # SERVICE: Pipelines that wire receivers → processors → exporters
@@ -99,7 +103,7 @@ service:
     traces:
       receivers: [otlp, zipkin]  # Listen on OTLP/gRPC and Zipkin
       processors: [memory_limiter, batch, attributes]  # Limit memory, batch, add labels
-      exporters: [jaeger]        # Send to Jaeger for UI visualization
+      exporters: [otlp/jaeger]  # Send to Jaeger for UI visualization
     
     # ========================================================================
     # METRICS PIPELINE: Counters/histograms → (batch, limit) → Prometheus
@@ -121,4 +125,4 @@ service:
     logs:
       receivers: [otlp]          # OTel SDK sends LogRecord events
       processors: [memory_limiter, batch, attributes]  # Limit memory, batch, add labels
-      exporters: [loki]          # Loki stores logs with labels for Grafana queries
+      exporters: [logging]       # Export to logs for now (Loki setup later)

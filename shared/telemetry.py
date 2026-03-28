@@ -16,10 +16,11 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-# Note: Instrumentation imports commented out due to pkg_resources deprecation issue
-# from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-# from opentelemetry.instrumentation.logging import LoggingInstrumentor
-# from opentelemetry.instrumentation.requests import RequestsInstrumentor
+# Note: Instrumentation imports re-enabled with updated packages
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.redis import RedisInstrumentor
 
 
 def setup_json_logging():
@@ -99,11 +100,16 @@ def instrument_fastapi_app(
 ) -> None:
     """
     Instrument a FastAPI application with OpenTelemetry.
-    Note: Direct instrumentation disabled due to pkg_resources deprecation.
-    Tracing is still available via the tracer returned from setup_opentelemetry().
+    Auto-instrumentation enabled for complete trace coverage.
     """
-    # TODO: Re-enable instrumentation once OpenTelemetry fixes pkg_resources issue
-    # FastAPIInstrumentor.instrument_app(app)
-    # RequestsInstrumentor().instrument()
-    # LoggingInstrumentor().instrument(set_logging_format=True)
-    pass
+    # Instrument FastAPI for HTTP spans
+    FastAPIInstrumentor.instrument_app(app)
+    
+    # Instrument database calls
+    SQLAlchemyInstrumentor().instrument()
+    
+    # Instrument HTTP client calls (inter-service communication)
+    HTTPXClientInstrumentor().instrument()
+    
+    # Instrument Redis calls
+    RedisInstrumentor().instrument()

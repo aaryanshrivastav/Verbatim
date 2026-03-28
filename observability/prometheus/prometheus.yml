@@ -17,7 +17,7 @@
 # See: observability/OTEL_PIPELINE_GUIDE.md (Part 2) for metric flow details
 
 global:
-  scrape_interval: 5s
+  scrape_interval: 2s
 
 scrape_configs:
   # Scrape OTel Collector metrics (from microservices via OTLP)
