@@ -10,14 +10,16 @@ from opentelemetry import metrics, trace
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.logging import LoggingInstrumentor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+# Note: Instrumentation imports commented out due to pkg_resources deprecation issue
+# from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+# from opentelemetry.instrumentation.logging import LoggingInstrumentor
+# from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 
 def setup_json_logging():
@@ -97,16 +99,11 @@ def instrument_fastapi_app(
 ) -> None:
     """
     Instrument a FastAPI application with OpenTelemetry.
+    Note: Direct instrumentation disabled due to pkg_resources deprecation.
+    Tracing is still available via the tracer returned from setup_opentelemetry().
     """
-    # Instrument FastAPI
-    FastAPIInstrumentor.instrument_app(
-        app,
-        server_request_hook=lambda span, scope: None,
-        client_request_hook=lambda span, request: None,
-    )
-
-    # Instrument requests library for outbound HTTP calls
-    RequestsInstrumentor().instrument()
-
-    # Instrument logging
-    LoggingInstrumentor().instrument(set_logging_format=True)
+    # TODO: Re-enable instrumentation once OpenTelemetry fixes pkg_resources issue
+    # FastAPIInstrumentor.instrument_app(app)
+    # RequestsInstrumentor().instrument()
+    # LoggingInstrumentor().instrument(set_logging_format=True)
+    pass

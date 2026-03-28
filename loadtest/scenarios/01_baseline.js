@@ -12,8 +12,8 @@ export const options = {
   vus: 10,           // 10 concurrent virtual users
   duration: '2m',    // Test for 2 minutes
   thresholds: {
-    // ThresholdsFailed = any check failed
-    checks: ['value < 0.1'],  // 90% success rate
+    // checks: percentage of passed checks (0-1)
+    checks: ['rate > 0.9'],  // 90% success rate
     // Error rate must be < 5%
     http_req_failed: ['rate < 0.05'],
     // P95 latency must be < 2s

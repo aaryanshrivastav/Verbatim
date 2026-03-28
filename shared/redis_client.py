@@ -18,7 +18,7 @@ async def init_redis() -> AsyncRedis:
     """Initialize and return Redis client."""
     global _redis_client
     if _redis_client is None:
-        _redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        _redis_client = await AsyncRedis.from_url(REDIS_URL, decode_responses=True)
     return _redis_client
 
 
@@ -32,7 +32,9 @@ async def close_redis() -> None:
 
 async def get_redis_client() -> AsyncRedis:
     """Dependency for FastAPI to inject Redis client."""
-    return await init_redis()
+    if _redis_client is None:
+        await init_redis()
+    return _redis_client
 
 
 async def cache_get(key: str, redis_client: AsyncRedis) -> Optional[Any]:

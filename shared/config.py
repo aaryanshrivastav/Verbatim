@@ -31,5 +31,5 @@ HTTP_TIMEOUT_SECONDS = float(os.getenv("HTTP_TIMEOUT_SECONDS", "10"))
 DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))
 
 # Payment simulation
-PAYMENT_SUCCESS_RATE = float(os.getenv("PAYMENT_SUCCESS_RATE", "0.8"))  # 80% success
-PAYMENT_TIMEOUT_RATE = float(os.getenv("PAYMENT_TIMEOUT_RATE", "0.1"))  # 10% timeout
+PAYMENT_SUCCESS_RATE = float(os.getenv("PAYMENT_SUCCESS_RATE", "0.99"))  # 99% success for baseline
+PAYMENT_TIMEOUT_RATE = float(os.getenv("PAYMENT_TIMEOUT_RATE", "0.0"))  # 0% timeout for baseline

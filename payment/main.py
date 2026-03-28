@@ -4,8 +4,13 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+import os as _os
 
-load_dotenv()
+# Try loading .env.local for local testing, fall back to .env
+if _os.path.exists('.env.local'):
+    load_dotenv('.env.local')
+else:
+    load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -75,6 +80,12 @@ app.add_middleware(
 
 # Include routers
 app.include_router(payment_router)
+
+# Health check endpoint
+@app.get("/health")
+async def health():
+    """Health check endpoint."""
+    return {"status": "ok", "service": "payment-service"}
 
 
 if __name__ == "__main__":

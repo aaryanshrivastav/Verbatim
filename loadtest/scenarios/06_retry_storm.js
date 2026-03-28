@@ -10,7 +10,7 @@ export const options = {
   vus: 15,
   duration: '3m',
   thresholds: {
-    checks: ['value > 0.90'],
+    checks: ['rate > 0.90'],
     http_req_duration: ['p(95) < 4000'],  // Longer latency due to retries
   },
 };

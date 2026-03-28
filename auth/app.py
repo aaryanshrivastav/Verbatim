@@ -62,12 +62,13 @@ def generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-@router.post("/validate", response_model=ValidateResponse)
+@router.post("/validate", response_model=ValidateResponse, status_code=200)
 async def validate_auth(
     request: ValidateRequest, db: AsyncSession = Depends(get_db_session)
 ) -> ValidateResponse:
     """
     Validate authentication via token or username/password.
+    Returns 200 with valid=true/false.
     """
     try:
         if request.token:
@@ -80,8 +81,11 @@ async def validate_auth(
             )
             session = result.scalars().first()
 
-            if not session or session.expires_at < datetime.utcnow():
-                return ValidateResponse(valid=False, message="Token expired or invalid")
+            if not session:
+                return ValidateResponse(valid=False, message="Token not found")
+                
+            if session.expires_at < datetime.utcnow():
+                return ValidateResponse(valid=False, message="Token expired")
 
             return ValidateResponse(valid=True, user_id=str(session.user_id), message="Token valid")
 
@@ -93,8 +97,6 @@ async def validate_auth(
             if not user:
                 return ValidateResponse(valid=False, message="Invalid credentials")
 
-            # In production, passwords would be hashed. This is simplified.
-            # Assume password stored as hash in DB
             if verify_password(request.password, user.password):
                 return ValidateResponse(valid=True, user_id=str(user.id), message="Credentials valid")
 
@@ -111,13 +113,18 @@ async def validate_auth(
 @router.post("/login", response_model=AuthResponse, status_code=200)
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db_session)) -> AuthResponse:
     """
-    Login with username and password, return token.
+    Login with username and password.
+    Returns a token for authenticated requests.
     """
     try:
         result = await db.execute(select(User).where(User.username == request.username))
         user = result.scalars().first()
 
-        if not user or not verify_password(request.password, user.password):
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+
+        # Verify password
+        if not verify_password(request.password, user.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         # Create session if enabled

@@ -15,7 +15,7 @@ export const options = {
     { duration: '2m', target: 0 },     // Ramp down: 200 → 0
   ],
   thresholds: {
-    checks: ['value > 0.85'],
+    checks: ['rate > 0.85'],
     http_req_failed: ['rate < 0.10'],  // Allow up to 10% failures during spike
     http_req_duration: ['p(95) < 2000'],
   },

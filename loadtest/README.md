@@ -8,7 +8,7 @@ Comprehensive load testing and chaos engineering suite for the FastAPI microserv
 
 ### Prerequisites
 
-- k6 installed: https://k6.io/docs/getting-started/installation/
+- k6 installed
 - Docker & Docker Compose (for running microservices)
 - Microservices running on localhost:8000
 

@@ -10,7 +10,7 @@ export const options = {
   vus: 30,
   duration: '5m',
   thresholds: {
-    checks: ['value > 0.95'],
+    checks: ['rate > 0.95'],
     http_req_failed: ['rate < 0.05'],
   },
 };

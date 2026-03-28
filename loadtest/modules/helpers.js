@@ -9,15 +9,16 @@ import { randomString, randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.4
  * Extract test data from gateway responses
  */
 export function extractProductIds() {
-  const response = http.get('http://localhost:8000/api/v1/products');
+  const response = http.get('http://localhost:8000/products');
   check(response, {
     'products retrieved': (r) => r.status === 200,
   });
   
   if (response.status === 200) {
-    const products = response.json('data');
-    if (Array.isArray(products)) {
-      return products.map(p => p.id);
+    const body = response.json();
+    // listProducts returns array directly (not wrapped)
+    if (Array.isArray(body)) {
+      return body.map(p => p.id);
     }
   }
   return [];
@@ -33,7 +34,7 @@ export function login(username = 'john_doe', password = 'secret') {
   });
 
   const response = http.post(
-    'http://localhost:8000/api/v1/auth/login',
+    'http://localhost:8000/auth/login',
     payload,
     {
       headers: {
@@ -47,11 +48,16 @@ export function login(username = 'john_doe', password = 'secret') {
   });
 
   if (response.status === 200) {
-    const body = response.json('data');
-    return {
-      token: body.token,
-      userId: body.user_id,
-    };
+    const body = response.json();
+    // Handle different response formats
+    const token = body.token || body.data?.token;
+    const userId = body.user_id || body.data?.user_id || body.data?.id;
+    if (token) {
+      return {
+        token: token,
+        userId: userId,
+      };
+    }
   }
   return null;
 }
@@ -63,7 +69,7 @@ export function validateToken(token) {
   const payload = JSON.stringify({ token: token });
 
   const response = http.post(
-    'http://localhost:8000/api/v1/auth/validate',
+    'http://localhost:8000/auth/validate',
     payload,
     {
       headers: {
@@ -76,7 +82,8 @@ export function validateToken(token) {
     'token validation returned 200': (r) => r.status === 200,
   });
 
-  return response.json('data');
+  const body = response.json();
+  return body.data || body;
 }
 
 /**
@@ -89,7 +96,7 @@ export function createOrder(userId, items) {
   });
 
   const response = http.post(
-    'http://localhost:8000/api/v1/orders',
+    'http://localhost:8000/orders',
     payload,
     {
       headers: {
@@ -103,11 +110,14 @@ export function createOrder(userId, items) {
   });
 
   if (response.status === 201 || response.status === 200) {
-    const order = response.json('data');
+    const body = response.json();
+    const order = body.data || body;
     return {
       orderId: order.id,
+      userId: order.user_id,
       status: order.status,
       totalAmount: order.total_amount,
+      items: order.items || [],
     };
   }
   return null;
@@ -117,14 +127,15 @@ export function createOrder(userId, items) {
  * Get order details
  */
 export function getOrder(orderId) {
-  const response = http.get(`http://localhost:8000/api/v1/orders/${orderId}`);
+  const response = http.get(`http://localhost:8000/orders/${orderId}`);
 
   check(response, {
     'order retrieved': (r) => r.status === 200,
   });
 
   if (response.status === 200) {
-    return response.json('data');
+    const body = response.json();
+    return body.data || body;
   }
   return null;
 }
@@ -133,14 +144,21 @@ export function getOrder(orderId) {
  * List all products
  */
 export function listProducts() {
-  const response = http.get('http://localhost:8000/api/v1/products');
+  const response = http.get('http://localhost:8000/products');
 
   check(response, {
     'products listed': (r) => r.status === 200,
   });
 
   if (response.status === 200) {
-    return response.json('data');
+    const body = response.json();
+    // listProducts returns array directly (not wrapped)
+    if (Array.isArray(body)) {
+      return body;
+    }
+    // Fallback if wrapped
+    const products = body.products || body.data || [];
+    return Array.isArray(products) ? products : [];
   }
   return [];
 }
@@ -149,14 +167,15 @@ export function listProducts() {
  * Get single product
  */
 export function getProduct(productId) {
-  const response = http.get(`http://localhost:8000/api/v1/products/${productId}`);
+  const response = http.get(`http://localhost:8000/products/${productId}`);
 
   check(response, {
     'product retrieved': (r) => r.status === 200,
   });
 
   if (response.status === 200) {
-    return response.json('data');
+    const body = response.json();
+    return body.data || body;
   }
   return null;
 }

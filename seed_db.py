@@ -13,6 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Base, User, Product, Order, OrderItem, Payment
 from shared.db import engine, AsyncSessionLocal
+import hashlib
+
+
+def hash_password(password: str) -> str:
+    """Hash password using SHA256."""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 
 async def seed_database():
@@ -29,20 +35,20 @@ async def seed_database():
             print("Database already seeded, skipping...")
             return
         
-        # Create test users
+        # Create test users with hashed passwords
         user1 = User(
             id=uuid.uuid4(),
             username="john_doe",
             email="john@example.com",
+            password=hash_password("secret"),
         )
-        user1.password = "5e884898da28047151d0e56f8dc62927538270d735b0c0487d0dcc1d82f3d4642"  # sha256("secret")
         
         user2 = User(
             id=uuid.uuid4(),
             username="jane_smith",
             email="jane@example.com",
+            password=hash_password("password123"),
         )
-        user2.password = "5e884898da28047151d0e56f8dc62927538270d735b0c0487d0dcc1d82f3d4642"  # sha256("secret")
         
         session.add(user1)
         session.add(user2)

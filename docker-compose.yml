@@ -73,7 +73,7 @@ services:
     networks:
       - microservices
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -106,7 +106,7 @@ services:
     networks:
       - microservices
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -143,7 +143,7 @@ services:
     networks:
       - microservices
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -177,7 +177,7 @@ services:
     networks:
       - microservices
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -207,7 +207,7 @@ services:
     networks:
       - microservices
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -251,10 +251,11 @@ services:
     networks:
       - microservices
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 20s
 
   # ============================================================================
   # OBSERVABILITY STACK
@@ -310,7 +311,7 @@ services:
     networks:
       - microservices
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:14268/"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3

@@ -1,39 +1,44 @@
 // Environment Configuration
-// Different URLs for dev, staging, production
+// Maps gateway and service URLs by deployment environment
 
 export const environments = {
-  local: {
+  // Docker Compose: All services accessible via localhost:8000 (main app aggregates all routers)
+  docker: {
     gatewayUrl: 'http://localhost:8000',
-    apiPrefix: '/api/v1',
-    authServiceUrl: 'http://localhost:8001',
-    catalogServiceUrl: 'http://localhost:8002',
-    orderServiceUrl: 'http://localhost:8003',
-    paymentServiceUrl: 'http://localhost:8004',
+    baseUrl: 'http://localhost:8000',
+    auth: 'http://localhost:8000/auth',
+    catalog: 'http://localhost:8000/products',
+    orders: 'http://localhost:8000/orders',
+    payment: 'http://localhost:8000/charge',
   },
+  
+  // Local development: Services on individual ports 8001-8004
+  local: {
+    gatewayUrl: 'http://localhost:8000',  // Gateway aggregates
+    baseUrl: 'http://localhost:8000',      // Use gateway (not individual service ports)\n    auth: 'http://localhost:8001/auth',
+    catalog: 'http://localhost:8002/products',
+    orders: 'http://localhost:8003/orders',
+    payment: 'http://localhost:8004/charge',
+  },
+  
+  // Cloud deployments with remote gateway
   staging: {
-    gatewayUrl: 'https://staging-gateway.example.com',
-    apiPrefix: '/api/v1',
-    authServiceUrl: 'https://staging-auth.example.com',
-    catalogServiceUrl: 'https://staging-catalog.example.com',
-    orderServiceUrl: 'https://staging-order.example.com',
-    paymentServiceUrl: 'https://staging-payment.example.com',
+    gatewayUrl: 'https://staging-api.example.com',
+    baseUrl: 'https://staging-api.example.com',
+    auth: 'https://staging-api.example.com/auth',
+    catalog: 'https://staging-api.example.com/products',
+    orders: 'https://staging-api.example.com/orders',
+    payment: 'https://staging-api.example.com/charge',
   },
+  
   production: {
     gatewayUrl: 'https://api.example.com',
-    apiPrefix: '/api/v1',
-    authServiceUrl: 'https://auth.example.com',
-    catalogServiceUrl: 'https://catalog.example.com',
-    orderServiceUrl: 'https://order.example.com',
-    paymentServiceUrl: 'https://payment.example.com',
+    baseUrl: 'https://api.example.com',
+    auth: 'https://api.example.com/auth',
+    catalog: 'https://api.example.com/products',
+    orders: 'https://api.example.com/orders',
+    payment: 'https://api.example.com/charge',
   },
 };
 
-/**
- * Get environment config by name or from __ENV variable
- */
-export function getEnvironment() {
-  const env = __ENV.ENVIRONMENT || 'local';
-  return environments[env] || environments.local;
-}
-
-export default getEnvironment();
+/**\n * Get environment config by name or from __ENV variable\n * Default: docker (for docker-compose up)\n */\nexport function getEnvironment() {\n  const env = __ENV.ENV || 'docker';\n  return environments[env] || environments.docker;\n}\n\nexport default getEnvironment();

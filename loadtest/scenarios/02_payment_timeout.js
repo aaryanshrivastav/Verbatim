@@ -11,7 +11,7 @@ export const options = {
   duration: '2m',
   thresholds: {
     // Even with timeout, orders should be created (201)
-    checks: ['value > 0.95'],  // 95% success rate
+    checks: ['rate > 0.95'],  // 95% success rate
     // HTTP requests should succeed (201 status)
     http_req_failed: ['rate < 0.05'],
     // Latency will be high due to timeout (2s+ wait)

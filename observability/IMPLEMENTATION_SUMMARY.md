@@ -81,11 +81,11 @@ instrument_fastapi_app(app, "service-name")
 
 ```
 ┌────────────────────────────────────────────────┐
-│ Microservice (FastAPI + OpenTelemetry)          │
-│ - Spans created automatically                   │
-│ - Metrics recorded per request                  │
-│ - Logs emitted as JSON                          │
-└────────────────────┬─────────────────────────────┘
+│ Microservice (FastAPI + OpenTelemetry)         │
+│ - Spans created automatically                  │
+│ - Metrics recorded per request                 │
+│ - Logs emitted as JSON                         │
+└────────────────────┬───────────────────────────┘
                      │ OTLP/gRPC
                      ▼
         ┌────────────────────────────┐
