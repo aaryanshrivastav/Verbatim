@@ -15,7 +15,7 @@ opentelemetry-instrumentation==0.42b0
 opentelemetry-instrumentation-fastapi==0.42b0
 opentelemetry-instrumentation-requests==0.42b0
 opentelemetry-instrumentation-logging==0.42b0
-opentelemetry-exporter-otlp==0.42b0
+opentelemetry-exporter-otlp==1.21.0
 opentelemetry-exporter-prometheus==0.42b0
 structlog==24.1.0
 
