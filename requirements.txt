@@ -1,3 +1,4 @@
+# Core dependencies
 fastapi==0.104.1
 uvicorn==0.24.0
 sqlalchemy==2.0.23
@@ -8,9 +9,9 @@ requests==2.31.0
 pydantic==2.5.0
 python-dotenv==1.0.0
 prometheus-client==0.19.0
-setuptools>=68.0.0
+setuptools==68.0.0
 
-# OpenTelemetry (core only, instrumentation disabled due to pkg_resources deprecation)
+# OpenTelemetry (complete instrumentation setup)
 opentelemetry-api==1.24.0
 opentelemetry-sdk==1.24.0
 opentelemetry-exporter-otlp==1.24.0

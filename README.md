@@ -1,28 +1,48 @@
 # FastAPI Microservices Observability Demo
 
-Complete FastAPI microservices architecture with inter-service communication, caching, and payment retry logic.
+Complete FastAPI microservices architecture with **Component 1: Complete Observability Pipeline** - traces, metrics, and logs queryable in <2s with consistent service identity.
 
-## Quick Start (Unified Entry Point)
+## 🚀 QUICK START (For Your Team)
 
-### Using the Main Application (Recommended)
+### One-Command Setup
 
+**Linux/Mac:**
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment
-cp .env.example .env
-
-# Create database (tables auto-created on startup)
-createdb microservices_db
-
-# Run all services under one app (port 8000)
-uvicorn main:app --reload
+./setup.sh
 ```
 
-Then open http://localhost:8000/docs for the API documentation.
+**Windows:**
+```powershell
+.\setup.ps1
+```
 
-**Note**: This runs all services under a single FastAPI instance for development. Each service is accessible at `/auth`, `/products`, `/orders`, `/charge`, `/api/v1`, etc.
+### Manual Setup
+
+```bash
+# 1. Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# or
+.\venv\Scripts\Activate.ps1  # Windows
+
+# 2. Install dependencies (pkg_resources issues fixed!)
+pip install -r requirements.txt
+
+# 3. Start observability stack
+cd observability
+docker-compose up -d
+
+# 4. Run the complete pipeline test
+cd ..
+python test_complete_pipeline.py
+```
+
+### Access the UIs
+
+- **Jaeger (Traces)**: http://localhost:16686
+- **Prometheus (Metrics)**: http://localhost:9090  
+- **Grafana (Dashboards)**: http://localhost:3000 (admin/admin)
+- **Loki (Logs)**: http://localhost:3100
 
 ---
 
