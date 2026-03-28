@@ -1,0 +1,101 @@
+# Docker Compose Override for Local Development
+# This file is automatically merged with docker-compose.yml when running docker-compose
+
+version: '3.8'
+
+services:
+  # Enable hot-reload for microservices
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: development
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./auth:/app/auth
+      - ./shared:/app/shared
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DEBUG=True
+
+  catalog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: development
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./catalog:/app/catalog
+      - ./shared:/app/shared
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DEBUG=True
+
+  order:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: development
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./order:/app/order
+      - ./shared:/app/shared
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DEBUG=True
+
+  payment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: development
+    ports:
+      - "8004:8000"
+    volumes:
+      - ./payment:/app/payment
+      - ./shared:/app/shared
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DEBUG=True
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: development
+    ports:
+      - "8005:8000"
+    volumes:
+      - ./gateway:/app/gateway
+      - ./shared:/app/shared
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DEBUG=True
+
+  main:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DEBUG=True

@@ -1,0 +1,379 @@
+# Docker Compose for Microservices Observability Demo
+# Runs all 5 microservices, unified app, PostgreSQL, Redis, and observability stack
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # DATA LAYER
+  # ============================================================================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-microservices_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices
+
+  # ============================================================================
+  # MICROSERVICES
+  # ============================================================================
+
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8001:8000"
+    environment:
+      SERVICE_NAME: auth
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-microservices_db}
+      REDIS_URL: redis://redis:6379/0
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      AUTH_SERVICE_URL: http://auth:8000
+      CATALOG_SERVICE_URL: http://catalog:8000
+      ORDER_SERVICE_URL: http://order:8000
+      PAYMENT_SERVICE_URL: http://payment:8000
+    command: python -m uvicorn auth.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  catalog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    ports:
+      - "8002:8000"
+    environment:
+      SERVICE_NAME: catalog
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-microservices_db}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_CACHE_TTL: ${REDIS_CACHE_TTL:-3600}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      AUTH_SERVICE_URL: http://auth:8000
+      CATALOG_SERVICE_URL: http://catalog:8000
+      ORDER_SERVICE_URL: http://order:8000
+      PAYMENT_SERVICE_URL: http://payment:8000
+    command: python -m uvicorn catalog.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  order:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "8003:8000"
+    environment:
+      SERVICE_NAME: order
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-microservices_db}
+      REDIS_URL: redis://redis:6379/0
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      AUTH_SERVICE_URL: http://auth:8000
+      CATALOG_SERVICE_URL: http://catalog:8000
+      ORDER_SERVICE_URL: http://order:8000
+      PAYMENT_SERVICE_URL: http://payment:8000
+      ENABLE_RETRY_STORM: ${ENABLE_RETRY_STORM:-false}
+      MAX_RETRIES: ${MAX_RETRIES:-3}
+      INITIAL_BACKOFF_SECONDS: ${INITIAL_BACKOFF_SECONDS:-1}
+      MAX_BACKOFF_SECONDS: ${MAX_BACKOFF_SECONDS:-32}
+      HTTP_TIMEOUT_SECONDS: ${HTTP_TIMEOUT_SECONDS:-10}
+    command: python -m uvicorn order.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  payment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "8004:8000"
+    environment:
+      SERVICE_NAME: payment
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-microservices_db}
+      REDIS_URL: redis://redis:6379/0
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      AUTH_SERVICE_URL: http://auth:8000
+      CATALOG_SERVICE_URL: http://catalog:8000
+      ORDER_SERVICE_URL: http://order:8000
+      PAYMENT_SERVICE_URL: http://payment:8000
+      PAYMENT_SUCCESS_RATE: ${PAYMENT_SUCCESS_RATE:-0.8}
+      PAYMENT_TIMEOUT_RATE: ${PAYMENT_TIMEOUT_RATE:-0.1}
+    command: python -m uvicorn payment.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    ports:
+      - "8005:8000"
+    environment:
+      SERVICE_NAME: gateway
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      AUTH_SERVICE_URL: http://auth:8000
+      CATALOG_SERVICE_URL: http://catalog:8000
+      ORDER_SERVICE_URL: http://order:8000
+      PAYMENT_SERVICE_URL: http://payment:8000
+    command: python -m uvicorn gateway.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - auth
+      - catalog
+      - order
+      - payment
+    volumes:
+      - .:/app
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ============================================================================
+  # UNIFIED MAIN APP (all services on one port)
+  # ============================================================================
+
+  main:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: main-app
+    ports:
+      - "8000:8000"
+    environment:
+      SERVICE_NAME: microservices-demo
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-microservices_db}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_CACHE_TTL: ${REDIS_CACHE_TTL:-3600}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      AUTH_SERVICE_URL: http://auth:8000
+      CATALOG_SERVICE_URL: http://catalog:8000
+      ORDER_SERVICE_URL: http://order:8000
+      PAYMENT_SERVICE_URL: http://payment:8000
+      ENABLE_RETRY_STORM: ${ENABLE_RETRY_STORM:-false}
+      MAX_RETRIES: ${MAX_RETRIES:-3}
+      INITIAL_BACKOFF_SECONDS: ${INITIAL_BACKOFF_SECONDS:-1}
+      MAX_BACKOFF_SECONDS: ${MAX_BACKOFF_SECONDS:-32}
+      HTTP_TIMEOUT_SECONDS: ${HTTP_TIMEOUT_SECONDS:-10}
+      PAYMENT_SUCCESS_RATE: ${PAYMENT_SUCCESS_RATE:-0.8}
+      PAYMENT_TIMEOUT_RATE: ${PAYMENT_TIMEOUT_RATE:-0.1}
+    command: python main.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ============================================================================
+  # OBSERVABILITY STACK
+  # ============================================================================
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.88.0
+    container_name: otel-collector
+    command:
+      - "--config=/etc/otel-collector-config.yaml"
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "9411:9411"   # Zipkin receiver
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    depends_on:
+      - prometheus
+      - jaeger
+      - loki
+    environment:
+      - GOGC=80
+    networks:
+      - microservices
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "16686:16686"  # UI
+      - "14268:14268"  # HTTP collector
+      - "6831:6831/udp"  # Compact thrift
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:14268/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml -validation.allow-structured-metadata=false
+    volumes:
+      - ./observability/loki/local-config.yaml:/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - microservices
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+    networks:
+      - microservices
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  microservices:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  grafana_data:
+    driver: local

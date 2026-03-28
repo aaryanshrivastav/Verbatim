@@ -1,0 +1,61 @@
+# Docker Compose for k6 Load Testing
+# Run with: docker-compose -f docker-compose.k6.yml run k6
+
+version: '3.8'
+
+services:
+  k6:
+    image: grafana/k6:latest
+    container_name: k6
+    volumes:
+      - ./tests/k6:/scripts
+    command: run /scripts/load-test.js
+    environment:
+      - K6_VUS=${K6_VUS:-10}
+      - K6_DURATION=${K6_DURATION:-30s}
+      - K6_RPS=${K6_RPS:-100}
+      - K6_API_BASE_URL=${K6_API_BASE_URL:-http://main:8000}
+    networks:
+      - microservices
+    depends_on:
+      - main
+      - prometheus
+
+  # InfluxDB for k6 metrics
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=admin
+      - INFLUXDB_DB=k6
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - microservices
+
+  # Grafana for k6 dashboards
+  grafana-k6:
+    image: grafana/grafana:latest
+    container_name: grafana-k6
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    depends_on:
+      - influxdb
+    networks:
+      - microservices
+
+networks:
+  microservices:
+    driver: bridge
+
+volumes:
+  influxdb_data:
+    driver: local
