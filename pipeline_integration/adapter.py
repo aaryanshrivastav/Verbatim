@@ -1,19 +1,31 @@
-"""Temporary incident-to-RCA adapter until the full RCA component lands."""
+"""Incident-to-RCA adapter with full RCA pipeline integration.
+
+Converts Detection incidents through the full RCA Modules A-G pipeline,
+with fallback to conservative adapter if needed.
+"""
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Mapping, Sequence
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from decision_engine.models import RCAOutput
 from detection.models import Incident
+from pipeline_integration.rca_integration import RCAIntegration, RCAPipelineConfig
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class IncidentAdapterConfig:
-    """Configuration for deriving a Decision-compatible RCA payload."""
+    """Configuration for RCA adapter with pipeline options."""
 
+    use_full_rca: bool = True  # Use full RCA pipeline if True, else fallback adapter
+    fallback_on_error: bool = True  # Fall back to simple adapter on RCA errors
+    rca_config: Optional[RCAPipelineConfig] = None
+    
     state_slots: Sequence[str] = (
         "gateway",
         "auth",
@@ -44,19 +56,71 @@ class IncidentAdapterConfig:
 
 
 class DetectionIncidentAdapter:
-    """Converts Detection incidents into a conservative RCA-compatible payload.
+    """Converts Detection incidents into Decision-compatible RCA payloads.
 
-    This is intentionally a compatibility shim, not a real RCA implementation.
-    It picks the highest-severity anomaly as the provisional root cause and
-    projects per-service severities into the fixed 6-slot state vector expected
-    by the Decision Engine.
+    Can use either:
+    - Full RCA pipeline (Modules A-G) for comprehensive analysis
+    - Fallback adapter for simple rule-based analysis when RCA is unavailable
     """
 
     def __init__(self, config: IncidentAdapterConfig | None = None) -> None:
         self.config = config or IncidentAdapterConfig()
+        self.rca_integration: Optional[RCAIntegration] = None
+        
+        # Initialize RCA integration if enabled
+        if self.config.use_full_rca:
+            try:
+                rca_config = self.config.rca_config or RCAPipelineConfig(
+                    fallback_on_error=self.config.fallback_on_error
+                )
+                self.rca_integration = RCAIntegration(rca_config)
+                logger.info("RCA integration initialized successfully")
+            except Exception as e:
+                if self.config.fallback_on_error:
+                    logger.warning(f"Failed to initialize RCA integration: {e}. Using fallback adapter.")
+                    self.rca_integration = None
+                else:
+                    raise
 
     def adapt(self, incident: Incident | Mapping[str, Any]) -> RCAOutput:
-        """Return a Decision-compatible RCA payload from a Detection incident."""
+        """Return a Decision-compatible RCA payload from a Detection incident.
+        
+        Uses full RCA pipeline (Modules A-G) if available, otherwise falls back
+        to simple fallback adapter.
+        
+        Args:
+            incident: Detection incident (model or dict)
+            
+        Returns:
+            RCAOutput compatible with Decision Engine
+        """
+        # Try full RCA pipeline first
+        if self.rca_integration:
+            try:
+                return self.rca_integration.analyze(incident)
+            except Exception as e:
+                if self.config.fallback_on_error:
+                    logger.warning(f"RCA analysis failed: {e}. Falling back to simple adapter.")
+                else:
+                    raise
+        
+        # Fall back to simple adapter
+        logger.debug("Using fallback adapter for incident analysis")
+        return self._adapt_fallback(incident)
+    
+    def _adapt_fallback(self, incident: Incident | Mapping[str, Any]) -> RCAOutput:
+        """Fallback adapter: simple rule-based RCA when full pipeline unavailable.
+        
+        Picks the highest-severity anomaly as the provisional root cause and
+        projects per-service severities into the fixed 6-slot state vector expected
+        by the Decision Engine.
+        
+        Args:
+            incident: Detection incident (model or dict)
+            
+        Returns:
+            RCAOutput with fallback/conservative values
+        """
         normalized = self._normalize_incident(incident)
         anomalies = sorted(
             normalized["anomalies"],
@@ -114,16 +178,22 @@ class DetectionIncidentAdapter:
                 "service": anomaly["service"],
                 "severity": float(anomaly["severity"]),
                 "anomaly_type": str(anomaly["anomaly_type"]),
-                "detected_at": self._parse_datetime(anomaly["detected_at"]),
+                "detected_at": self._parse_datetime(anomaly.get("detected_at", self._parse_datetime("2026-03-28T10:00:00Z"))),
             }
             for anomaly in incident.get("anomalies", [])
         ]
+        
+        # Extract affected services from anomalies if not provided
+        affected_services = incident.get("affected_services")
+        if not affected_services:
+            affected_services = list(set(anom["service"] for anom in anomalies))
+        
         return {
             "incident_id": incident["incident_id"],
             "endpoint": incident["endpoint"],
             "time_window_start": self._parse_datetime(incident["time_window_start"]),
             "time_window_end": self._parse_datetime(incident["time_window_end"]),
-            "affected_services": list(incident.get("affected_services", [])),
+            "affected_services": affected_services,
             "anomalies": anomalies,
         }
 
