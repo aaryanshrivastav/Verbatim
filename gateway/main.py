@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
 
 # Set service name for metrics
 import shared.metrics
-shared.metrics.SERVICE_NAME = "gateway"
+shared.metrics.SERVICE_NAME = "gateway-service"
 
 app = FastAPI(
     title="API Gateway",

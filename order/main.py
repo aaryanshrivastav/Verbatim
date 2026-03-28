@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
 
 # Set service name for metrics
 import shared.metrics
-shared.metrics.SERVICE_NAME = "order"
+shared.metrics.SERVICE_NAME = "order-service"
 
 app = FastAPI(
     title="Order Service",

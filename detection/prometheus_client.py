@@ -53,12 +53,19 @@ class PrometheusClient:
             
             if data.get("status") != "success":
                 logger.error(f"Prometheus query failed: {data}")
-                return {"result": []}
+                return {"data": {"result": []}}
             
             return data
         except requests.RequestException as e:
             logger.error(f"Prometheus query error: {e}")
             raise
+
+    @staticmethod
+    def _extract_result_series(data: Dict) -> list:
+        """Normalize Prometheus API responses for real and mocked payloads."""
+        if "data" in data:
+            return data.get("data", {}).get("result", [])
+        return data.get("result", [])
     
     def query_range(self, promql: str, start: int, end: int, step: int = 1) -> Dict:
         """Execute range query against Prometheus.
@@ -85,7 +92,7 @@ class PrometheusClient:
             
             if data.get("status") != "success":
                 logger.error(f"Prometheus range query failed: {data}")
-                return {"result": []}
+                return {"data": {"result": []}}
             
             return data
         except requests.RequestException as e:
@@ -110,15 +117,15 @@ class PrometheusClient:
         """
         promql = (
             f"histogram_quantile(0.95, "
-            f"rate({latency_metric}_bucket[1m])) "
-            f"by ({service_label}, {endpoint_label})"
+            f"sum by (le, {service_label}, {endpoint_label}) "
+            f"(rate({latency_metric}_bucket[1m])))"
         )
         
         try:
             data = self.query(promql)
             result = {}
             
-            for series in data.get("result", []):
+            for series in self._extract_result_series(data):
                 labels = series.get("metric", {})
                 service = labels.get(service_label, "unknown")
                 endpoint = labels.get(endpoint_label, "unknown")
@@ -148,15 +155,15 @@ class PrometheusClient:
             Dict mapping (service, endpoint) -> requests_per_second
         """
         promql = (
-            f"rate({request_metric}[1m]) "
-            f"by ({service_label}, {endpoint_label})"
+            f"sum by ({service_label}, {endpoint_label}) "
+            f"(rate({request_metric}[1m]))"
         )
         
         try:
             data = self.query(promql)
             result = {}
             
-            for series in data.get("result", []):
+            for series in self._extract_result_series(data):
                 labels = series.get("metric", {})
                 service = labels.get(service_label, "unknown")
                 endpoint = labels.get(endpoint_label, "unknown")
@@ -191,22 +198,21 @@ class PrometheusClient:
         """
         # Total request rate
         total_promql = (
-            f"rate({request_metric}[1m]) "
-            f"by ({service_label}, {endpoint_label})"
+            f"sum by ({service_label}, {endpoint_label}) "
+            f"(rate({request_metric}[1m]))"
         )
         
         # 5xx error rate
         error_promql = (
-            f"rate({request_metric}{{{status_label}=~\"5..\"}}"
-            f"[1m]) "
-            f"by ({service_label}, {endpoint_label})"
+            f"sum by ({service_label}, {endpoint_label}) "
+            f"(rate({request_metric}{{{status_label}=~\"5..\"}}[1m]))"
         )
         
         try:
             # Fetch total requests
             total_data = self.query(total_promql)
             total_requests = {}
-            for series in total_data.get("result", []):
+            for series in self._extract_result_series(total_data):
                 labels = series.get("metric", {})
                 key = (labels.get(service_label, "unknown"), 
                        labels.get(endpoint_label, "unknown"))
@@ -216,7 +222,7 @@ class PrometheusClient:
             # Fetch error requests
             error_data = self.query(error_promql)
             error_requests = {}
-            for series in error_data.get("result", []):
+            for series in self._extract_result_series(error_data):
                 labels = series.get("metric", {})
                 key = (labels.get(service_label, "unknown"), 
                        labels.get(endpoint_label, "unknown"))

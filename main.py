@@ -1,6 +1,7 @@
 """Main application entry point - combines all microservices into one FastAPI app."""
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
@@ -9,6 +10,7 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 # OpenTelemetry imports
 from shared.telemetry import setup_opentelemetry, instrument_fastapi_app
@@ -35,8 +37,7 @@ logger = logging.getLogger(__name__)
 # Setup OpenTelemetry
 tracer, meter, otel_logger = setup_opentelemetry(
     service_name="microservices-demo",
-    otlp_endpoint="http://localhost:4317",
-    enable_prometheus_metrics=True,
+    otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"),
 )
 otel_metrics = init_metrics(meter, "microservices-demo")
 
@@ -86,7 +87,7 @@ async def lifespan(app: FastAPI):
 
 # Set service name for metrics
 import shared.metrics
-shared.metrics.SERVICE_NAME = "main"
+shared.metrics.SERVICE_NAME = "microservices-demo"
 
 # Create main FastAPI app
 app = FastAPI(
@@ -183,7 +184,10 @@ async def health_check(
 async def metrics():
     """Return Prometheus metrics."""
     from shared.metrics import get_metrics_text
-    return get_metrics_text()
+    return PlainTextResponse(
+        content=get_metrics_text(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 @app.get("/readiness", tags=["monitoring"])
