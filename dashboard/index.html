@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="VERBATIM — Real-time AI Observability Platform with autonomous remediation">
+  <title>VERBATIM — AI Observability Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Scanline overlay -->
+  <div class="scanline-overlay"></div>
+  <!-- Incident red/green flash overlay -->
+  <div id="screen-flash" class="screen-flash"></div>
+  <!-- Alert banner -->
+  <div id="alert-banner" class="alert-banner">
+    <span id="alert-banner-text">⚠  INCIDENT DETECTED — AUTONOMOUS REMEDIATION INITIATING</span>
+  </div>
+  <!-- SLA Timer (fixed overlay, hidden in idle) -->
+  <div id="sla-timer-container" class="sla-timer-container hidden">
+    <span class="sla-label">TIME TO RESOLUTION</span>
+    <span id="sla-timer" class="sla-timer">00:00.00</span>
+  </div>
+
+  <!-- HEADER -->
+  <header id="main-header" class="header">
+    <div class="header-top">
+      <div class="header-left">
+        <span class="logo">⬡</span>
+        <span class="brand-name">VERBATIM</span>
+      </div>
+      <div class="header-center">
+        <span id="system-status-dot" class="status-dot healthy"></span>
+        <span id="system-status-text" class="status-text">ALL SYSTEMS OPERATIONAL</span>
+      </div>
+      <div class="header-right">
+        <button id="demo-btn" class="demo-btn" onclick="runDemoSimulation()">▶ RUN DEMO</button>
+        <a href="http://localhost:3000" target="_blank" class="grafana-link">Grafana →</a>
+      </div>
+    </div>
+    <div class="ticker-bar">
+      <div id="ticker-content" class="ticker-content">
+        <span>REQ/s: <em class="mono-val" id="tick-rps">—</em></span>
+        <span class="ticker-sep">│</span>
+        <span>ERR: <em class="mono-val" id="tick-err">—</em></span>
+        <span class="ticker-sep">│</span>
+        <span>ACTIVE INCIDENTS: <em class="mono-val" id="tick-incidents">0</em></span>
+        <span class="ticker-sep">│</span>
+        <span>SERVICES: <em class="mono-val" id="tick-services">—/—</em></span>
+        <span class="ticker-sep">│</span>
+        <span>RL EPISODES: <em class="mono-val" id="tick-episodes">—</em></span>
+        <span class="ticker-sep">│</span>
+        <span>UPTIME: <em class="mono-val" id="tick-uptime">00:00:00</em></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══ HERO SECTION: Hex Map + Timeline (fills viewport) ═══ -->
+  <section id="hero-grid" class="hero-grid">
+    <!-- Panel 1: Service Hex Map -->
+    <section id="panel-hexmap" class="panel">
+      <div class="panel-corner tl"></div><div class="panel-corner tr"></div>
+      <div class="panel-corner bl"></div><div class="panel-corner br"></div>
+      <div class="panel-header">
+        <h2>SERVICE TOPOLOGY</h2>
+        <span class="panel-badge" id="hexmap-badge">LIVE</span>
+      </div>
+      <div class="panel-body">
+        <svg id="hex-svg" viewBox="0 0 640 480" class="hex-svg"></svg>
+      </div>
+    </section>
+
+    <!-- Panel 2: Incident Timeline -->
+    <section id="panel-timeline" class="panel">
+      <div class="panel-corner tl"></div><div class="panel-corner tr"></div>
+      <div class="panel-corner bl"></div><div class="panel-corner br"></div>
+      <div class="panel-header">
+        <h2>INCIDENT TIMELINE</h2>
+        <span class="panel-badge" id="timeline-badge">IDLE</span>
+      </div>
+      <div class="panel-body" id="timeline-body">
+        <div id="timeline-idle" class="timeline-idle">
+          <p class="dim-text">No active incidents.</p>
+          <div id="last-resolved-info" class="last-resolved"></div>
+          <div class="timeline-stats">
+            <div>INCIDENTS RESOLVED TODAY: <em class="mono-val" id="incidents-resolved-count">0</em></div>
+            <div>AVG RESOLUTION TIME: <em class="mono-val" id="avg-resolution">—</em></div>
+          </div>
+        </div>
+        <div id="timeline-active" class="timeline-active hidden">
+          <div id="milestone-list" class="milestone-list"></div>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ═══ BELOW FOLD: RL + Evidence side by side ═══ -->
+  <section class="detail-grid">
+    <!-- Panel 4: RL Widget -->
+    <section id="panel-rl" class="panel panel-rl">
+      <div class="panel-corner tl"></div><div class="panel-corner tr"></div>
+      <div class="panel-corner bl"></div><div class="panel-corner br"></div>
+      <div class="panel-header">
+        <h2>RL AGENT</h2>
+        <span class="panel-badge rl-badge" id="rl-status-badge">◉ STANDBY</span>
+      </div>
+      <div class="panel-body">
+        <div class="rl-stats">
+          <div class="rl-stat"><span class="rl-label">OFFLINE TRAINING</span><span class="mono-val" id="rl-offline">2000 episodes</span></div>
+          <div class="rl-stat"><span class="rl-label">LIVE EPISODES</span><span class="mono-val" id="rl-live">0</span></div>
+          <div class="rl-stat"><span class="rl-label">LAST REWARD</span><span class="mono-val" id="rl-reward">—</span></div>
+        </div>
+        <div class="rl-state-vector">
+          <span class="rl-label">STATE VECTOR</span>
+          <div id="rl-state-cells" class="state-cells">
+            <div class="state-cell healthy" data-idx="0">0</div>
+            <div class="state-cell healthy" data-idx="1">0</div>
+            <div class="state-cell healthy" data-idx="2">0</div>
+            <div class="state-cell healthy" data-idx="3">0</div>
+            <div class="state-cell healthy" data-idx="4">0</div>
+            <div class="state-cell healthy" data-idx="5">0</div>
+          </div>
+        </div>
+        <div class="rl-qvalues">
+          <span class="rl-label">Q-VALUES — CURRENT STATE</span>
+          <div class="q-bar-row" id="q-restart"><span class="q-action">restart</span><div class="q-bar-track"><div class="q-bar-fill" style="width:50%"></div></div><span class="mono-val q-val">0.00</span></div>
+          <div class="q-bar-row" id="q-scale_up"><span class="q-action">scale_up</span><div class="q-bar-track"><div class="q-bar-fill" style="width:30%"></div></div><span class="mono-val q-val">0.00</span></div>
+          <div class="q-bar-row" id="q-force_kill"><span class="q-action">force_kill</span><div class="q-bar-track"><div class="q-bar-fill" style="width:20%"></div></div><span class="mono-val q-val">0.00</span></div>
+          <div class="q-bar-row" id="q-scale_down"><span class="q-action">scale_down</span><div class="q-bar-track"><div class="q-bar-fill" style="width:5%"></div></div><span class="mono-val q-val">0.00</span></div>
+        </div>
+        <div class="rl-footer">
+          <span class="mono-val dim">α=0.10  γ=0.90</span>
+          <span class="mono-val dim" id="rl-qtable-size">Q-table: — cells</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel 3: Evidence -->
+    <section id="panel-evidence" class="panel">
+      <div class="panel-corner tl"></div><div class="panel-corner tr"></div>
+      <div class="panel-corner bl"></div><div class="panel-corner br"></div>
+      <div class="panel-header">
+        <h2>EVIDENCE</h2>
+        <span id="evidence-label" class="panel-badge dim">LAST INCIDENT</span>
+      </div>
+      <div class="panel-body" id="evidence-body">
+        <p class="dim-text" id="evidence-empty">No evidence available yet.</p>
+        <div id="evidence-content" class="evidence-content hidden">
+          <div class="evidence-candidates" id="evidence-candidates"></div>
+          <div class="evidence-traces" id="evidence-traces"></div>
+          <div class="evidence-metrics" id="evidence-metrics"></div>
+          <div class="evidence-logs" id="evidence-logs"></div>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- Panel 5: Recovery Chart (Full Width) -->
+  <section id="panel-chart" class="panel panel-chart">
+    <div class="panel-corner tl"></div><div class="panel-corner tr"></div>
+    <div class="panel-corner bl"></div><div class="panel-corner br"></div>
+    <div class="panel-header">
+      <h2>RECOVERY CHART</h2>
+      <span class="panel-badge dim" id="chart-label">AWAITING DATA</span>
+    </div>
+    <div class="panel-body chart-body">
+      <canvas id="recovery-chart"></canvas>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
